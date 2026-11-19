@@ -15,6 +15,7 @@ export function HeroLoader({ done }: { done: boolean }) {
     <div
       className={`absolute inset-0 z-20 flex flex-col items-center justify-center gap-6 bg-ink transition-opacity duration-700 ${done ? "pointer-events-none opacity-0" : "opacity-100"}`}
       role="status"
+      data-hero-loader
       aria-live="polite"
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -15,7 +15,7 @@ const errors = [];
 page.on("pageerror", (e) => errors.push(String(e)));
 page.on("console", (m) => { if (m.type() === "error" || m.type() === "warning") errors.push(m.type() + ": " + m.text()); });
 await page.goto(url + (quality ? `?quality=${quality}` : ""), { waitUntil: "networkidle" });
-await page.waitForFunction(() => !document.querySelector('[role="status"]'), null, { timeout: 120000 });
+await page.waitForFunction(() => !document.querySelector("[data-hero-loader]"), null, { timeout: 120000 });
 for (const p of ps) {
   await page.evaluate((p) => {
     const s = document.getElementById("inicio");

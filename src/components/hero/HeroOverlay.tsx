@@ -175,7 +175,7 @@ export function HeroOverlay({ onSkip }: { onSkip: () => void }) {
         ref={skipRef}
         type="button"
         onClick={onSkip}
-        className="pointer-events-auto absolute right-5 bottom-6 flex items-center gap-2 rounded-full border border-white/15 bg-ink/40 px-4 py-2 text-[11px] font-semibold tracking-[0.22em] text-white/75 uppercase backdrop-blur-md transition-[opacity,color,border-color] duration-300 hover:border-brand hover:text-brand md:top-24 md:right-12 md:bottom-auto"
+        className="pointer-events-auto absolute top-[4.75rem] right-5 flex items-center gap-2 rounded-full border border-white/15 bg-ink/40 px-4 py-2 text-[11px] font-semibold tracking-[0.22em] text-white/75 uppercase backdrop-blur-md transition-[opacity,color,border-color] duration-300 hover:border-brand hover:text-brand md:top-24 md:right-12"
       >
         Saltar introdução
         <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden>

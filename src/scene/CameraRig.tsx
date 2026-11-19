@@ -63,19 +63,19 @@ export function CameraRig({ parallax = true }: { parallax?: boolean }) {
     const aspect = size.width / Math.max(1, size.height);
     if (aspect < DESIGN_ASPECT) {
       const need = DESIGN_ASPECT / aspect;
-      const fovGain = Math.min(need, 1.5);
+      const inRoom = range(p, 0.38, 0.5);
+      // dentro da sala alarga-se mais o FOV e quase não se recua (para não sair pelas paredes)
+      const fovGain = Math.min(need, lerp(1.5, 2.1, inRoom));
       fov = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(fov / 2)) * fovGain));
       const rest = need / fovGain;
       if (rest > 1) {
-        const inRoom = range(p, 0.38, 0.5);
-        const strength = lerp(0.9, 0.32, inRoom);
-        const d = Math.pow(rest, strength);
+        const d = Math.pow(rest, lerp(0.9, 0.12, inRoom));
         pos.sub(tgt).multiplyScalar(d).add(tgt);
-        // no telemóvel o set de podcast é o protagonista: centra a câmara nele
-        const focusX = lerp(0, 1.6 - tgt.x, inRoom * 0.6);
-        pos.x += focusX;
-        tgt.x += focusX;
       }
+      // no telemóvel o set de podcast é o protagonista: centra a câmara nele
+      const focusX = (1.7 - tgt.x) * inRoom * 0.7;
+      pos.x += focusX;
+      tgt.x += focusX;
       fov = clamp(fov, 20, 78);
     }
 
