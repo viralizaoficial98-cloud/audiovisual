@@ -17,7 +17,8 @@ export default function Home() {
       <Header />
       <main>
         <CinematicHero />
-        <div id="conteudo">
+        <div className="silver-transition" aria-hidden />
+        <div id="conteudo" className="theme-silver">
           <Services />
           <PodcastRental />
           <Events />
@@ -27,7 +28,9 @@ export default function Home() {
           <Contact />
         </div>
       </main>
-      <Footer />
+      <div className="theme-silver">
+        <Footer />
+      </div>
       <WhatsAppFab />
       <QuoteModal />
     </>

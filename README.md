@@ -98,11 +98,35 @@ Durante a montagem, as peças que esperam a meio ou à frente da sala sobem para
 - Shaders pré-compilados antes de remover o loader; render pausa quando o banner sai do ecrã.
 - Sem WebGL → sequência de imagens sincronizada com o scroll (fallback 2D assumido). `prefers-reduced-motion` → banner estático, sem WebGL.
 - No mobile: secção mais curta, FOV adaptado a ecrãs verticais e enquadramento centrado no set de podcast.
+
+### Mobile (iOS Safari / Chrome Android)
+
+- É a **mesma cena 3D** e a mesma timeline do desktop (não há slides): o toque no ecrã faz scroll e o scroll comanda a montagem, em ambos os sentidos.
+- Enquadramento vertical: em ecrãs com proporção < 1 a câmara recua (`CameraRig`, curva `pow(rest, lerp(1.0, 0.12, inRoom))`) para a câmara montada e o kit de luz caberem inteiros; no estúdio o recuo diminui para mostrar o set.
+- GPU/bateria: em dispositivos de toque o Canvas usa `frameloop="demand"` — só renderiza quando o progresso muda (e no máximo ~15 fps em repouso para as animações de idle); partículas a ~30 fps; luzes pontuais reduzidas em retrato; nível de qualidade `low/medium` e `PerformanceMonitor` como no desktop.
+- `ScrollTrigger.config({ ignoreMobileResize: true })`: a barra de endereço do iOS/Android a aparecer/desaparecer não recalcula a timeline (sem saltos).
+- Sem WebGL → sequência de imagens; **"Reduzir movimento" activo no sistema → banner estático** (por desenho). Se no telemóvel aparecer só a imagem fixa, verifique esta definição de acessibilidade.
+- Testado em emulação Chromium (iPhone 13, Pixel 7) com gestos de toque reais via CDP; **não foi testado em dispositivos físicos nem no WebKit do Safari** — FPS e aquecimento reais ainda por medir.
+
+## Preços e pré-reserva da sala de podcast
+
+Fonte única: `src/content/pricing.ts` (tabela, formulário, mensagem de WhatsApp e testes leem daqui).
+
+- **Modalidade A — Gravação bruta** (sem edição): 1h 40.000 Kz · 2h 80.000 Kz · 3h 120.000 Kz · hora adicional 40.000 Kz. Mostra o aviso obrigatório de que não inclui edição/montagem/pós-produção.
+- **Modalidade B — Gravação + edição**: Essencial 100.000 Kz (3 vídeos), **Profissional 200.000 Kz (6 vídeos, destacado)**, Premium 300.000 Kz (9), Empresarial 400.000 Kz (12). Duração, revisões e prazos **não** são indicados — ficam sujeitos a confirmação comercial.
+- Os botões **Reservar** da tabela seleccionam a modalidade no formulário (`planBus.ts`), actualizam o resumo e levam até ao formulário. O preço do pacote é fixo (**nunca multiplicado pelas horas**); só a gravação bruta é `horas × 40.000 Kz`.
+- O envio abre o WhatsApp com a mensagem estruturada (`src/lib/booking.ts`): cliente, contacto, modalidade/pacote, valor de referência, data/hora, participantes e observações — sempre como **pedido de pré-reserva**.
+
+## Identidade visual Silver
+
+- O banner cinematográfico mantém preto + dourado. Depois dele, uma faixa de transição (`.silver-transition`) passa do preto ao prata e todo o conteúdo (`#conteudo` + rodapé) usa `.theme-silver`: prata #C0C0C0 / #E5E7EB / #A8ADB4, texto grafite #252525, dourado #FFCC00 como marcador nos títulos (`.mark-gold`), botões e destaques.
+- Classes em `src/app/globals.css` (`@layer components`): `text-muted/soft/faint`, `silver-band` (faixas alternadas), `card`/`field` reescritos para prata, `package*`, `price-table`, `btn-reserve`, `booking-summary`, `notice`.
 - Botão **Saltar introdução** sempre visível durante a sequência.
 
 ## Conteúdos e configuração
 
 - Contactos, preço por hora e URL: `src/config/site.ts`
+- Tabela de preços e pacotes: `src/content/pricing.ts`
 - Serviços, tipos de gravação/evento: `src/content/services.ts`
 - Galeria e processo: `src/content/studio.ts`
 - Portfólio: `src/content/portfolio.ts` (vazio de propósito — sem projectos inventados; instruções no ficheiro)

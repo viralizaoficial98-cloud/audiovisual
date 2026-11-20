@@ -6,6 +6,8 @@ import { isEmail, isFutureOrToday, isPhone, validateBooking, validateContact } f
 import { clamp, ease, range, sampleKeys } from "@/animation/math";
 import { LIGHTS, PHASES, STUDIO_STEPS } from "@/animation/phases";
 import { CAMERA_KEYS } from "@/scene/CameraRig";
+import { RAW_DISCLAIMER, editPackages, planLabel, planPrice, rawRecording } from "@/content/pricing";
+import { bookingMessage } from "@/lib/booking";
 
 test("preço da sala: 40.000 Kz por hora", () => {
   assert.equal(formatKz(estimatePodcast(1)), "40.000 Kz");
@@ -109,4 +111,37 @@ test("fase ESTÚDIO: 0,55→0,90 com marcos 0/25/50/75/100% e banner final até 
   // a fase LUZ termina na mesma posição de scroll em vh (≈ 646vh) que na versão aprovada
   assert.ok(Math.abs(sceneToScroll(0.55) * 1120 - 646.1) < 0.6);
   assert.ok(Math.abs(scrollToScene(sceneToScroll(0.725)) - 0.725) < 1e-9);
+});
+
+test("tabela de preços: gravação bruta e pacotes", () => {
+  assert.deepEqual(rawRecording.map((r) => [r.label, r.price]), [
+    ["1 hora de gravação", 40000],
+    ["2 horas de gravação", 80000],
+    ["3 horas de gravação", 120000],
+    ["Hora adicional", 40000],
+  ]);
+  assert.equal(planPrice({ kind: "bruta" }, 1), 40000);
+  assert.equal(planPrice({ kind: "bruta" }, 3), 120000);
+  assert.equal(planPrice({ kind: "bruta" }, 0), 0);
+  assert.deepEqual(editPackages.map((p) => [p.id, p.price, p.videos]), [
+    ["essencial", 100000, 3],
+    ["profissional", 200000, 6],
+    ["premium", 300000, 9],
+    ["empresarial", 400000, 12],
+  ]);
+  assert.equal(editPackages.filter((p) => p.featured).map((p) => p.id).join(), "profissional");
+  // o preço do pacote nunca é multiplicado pelas horas
+  for (const h of [1, 2, 5]) assert.equal(planPrice({ kind: "pacote", id: "premium" }, h), 300000);
+  assert.equal(planLabel({ kind: "pacote", id: "essencial" }), "Pacote Essencial");
+  assert.ok(RAW_DISCLAIMER.startsWith("Os valores apresentados incluem apenas a gravação bruta no estúdio."));
+});
+
+test("mensagem de pré-reserva por WhatsApp", () => {
+  const d = { name: "Ana", company: "", phone: "923456789", email: "", date: "2099-06-15", time: "10:30", hours: 4, type: "Podcast em vídeo", participants: 3, notes: "Dois convidados" };
+  const pkg = bookingMessage(d, { kind: "pacote", id: "profissional" });
+  for (const s of ["pré-reserva", "Ana", "923456789", "Pacote Profissional", "200.000 Kz (pacote)", "15/06/2099", "10:30", "3", "Dois convidados"]) assert.ok(pkg.includes(s), s);
+  assert.ok(!pkg.includes("800.000"));
+  const raw = bookingMessage({ ...d, hours: 2 }, { kind: "bruta" });
+  assert.ok(raw.includes("80.000 Kz"));
+  assert.ok(raw.includes("Gravação bruta"));
 });

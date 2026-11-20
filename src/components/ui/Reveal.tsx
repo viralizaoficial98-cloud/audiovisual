@@ -56,7 +56,7 @@ export function SectionHeading({ eyebrow, title, intro, align = "left" }: { eyeb
         {eyebrow}
       </p>
       <h2 className="section-title">{title}</h2>
-      {intro && <p className="mt-6 text-base leading-relaxed text-white/65 md:text-lg">{intro}</p>}
+      {intro && <p className="mt-6 text-base text-muted leading-relaxed md:text-lg">{intro}</p>}
     </Reveal>
   );
 }

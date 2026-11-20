@@ -15,8 +15,8 @@ export function Contact() {
     { icon: IconPin, label: "Área de actuação", value: site.areaServed },
   ];
   return (
-    <section id="contactos" aria-labelledby="contactos-title" className="relative overflow-hidden bg-ink-2 px-5 py-24 md:px-10 md:py-36">
-      <div className="pointer-events-none absolute -bottom-40 -left-40 h-[36rem] w-[36rem] rounded-full bg-brand/[0.08] blur-[120px]" aria-hidden />
+    <section id="contactos" aria-labelledby="contactos-title" className="relative overflow-hidden px-5 py-24 md:px-10 md:py-36">
+      <div className="pointer-events-none absolute -bottom-40 -left-40 h-[36rem] w-[36rem] rounded-full bg-brand/[0.18] blur-[120px]" aria-hidden />
       <div className="relative mx-auto grid max-w-[1400px] gap-14 lg:grid-cols-[1fr_1.1fr]">
         <Reveal>
           <p className="eyebrow mb-5">
@@ -24,30 +24,30 @@ export function Contact() {
             Contactos
           </p>
           <h2 id="contactos-title" className="section-title">
-            VIRALIZA <span className="text-brand">AUDIOVISUAL &amp; PODCAST</span>
+            VIRALIZA <span className="mark-gold">AUDIOVISUAL &amp; PODCAST</span>
           </h2>
           <ul className="mt-10 space-y-3">
             {rows.map((r) => {
               const Icon = r.icon;
               const inner = (
                 <>
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand/10 text-brand">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center icon-chip rounded-xl">
                     <Icon size={20} />
                   </span>
                   <span>
-                    <span className="block text-[11px] font-semibold tracking-[0.2em] text-white/45 uppercase">{r.label}</span>
-                    <span className="block text-base font-medium text-white md:text-lg">{r.value}</span>
+                    <span className="block text-[11px] font-semibold text-faint tracking-[0.2em] uppercase">{r.label}</span>
+                    <span className="block text-base font-medium md:text-lg">{r.value}</span>
                   </span>
                 </>
               );
               return (
                 <li key={r.label}>
                   {r.href ? (
-                    <a href={r.href} target={r.href.startsWith("http") ? "_blank" : undefined} rel="noopener noreferrer" className="flex items-center gap-4 rounded-2xl border border-white/8 p-4 transition hover:border-brand/40 hover:bg-white/[0.03]">
+                    <a href={r.href} target={r.href.startsWith("http") ? "_blank" : undefined} rel="noopener noreferrer" className="flex items-center gap-4 rounded-2xl border border-[#252525]/12 bg-white/55 p-4 transition hover:border-[#c79c00] hover:bg-white">
                       {inner}
                     </a>
                   ) : (
-                    <div className="flex items-center gap-4 rounded-2xl border border-white/8 p-4">{inner}</div>
+                    <div className="flex items-center gap-4 rounded-2xl border border-[#252525]/12 bg-white/55 p-4">{inner}</div>
                   )}
                 </li>
               );

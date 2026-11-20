@@ -123,7 +123,7 @@ export function HeroOverlay({ onSkip }: { onSkip: () => void }) {
         <p data-fade className="mb-4 text-[11px] font-semibold tracking-[0.36em] text-brand uppercase">
           Luanda · Angola
         </p>
-        <h2 id="hero-title" tabIndex={-1} className="font-display text-[2.5rem] leading-[0.95] font-extrabold tracking-tight outline-none sm:text-6xl md:text-[2.9rem]">
+        <h2 id="hero-title" tabIndex={-1} className="font-display text-[1.85rem] leading-[0.98] font-extrabold tracking-tight outline-none sm:text-5xl md:text-[2.9rem]">
           <Words text="VIRALIZA" />
           <br className="md:hidden" /> <span className="text-brand">
             <Words text="AUDIOVISUAL & PODCAST" />

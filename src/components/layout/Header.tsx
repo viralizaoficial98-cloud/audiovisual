@@ -63,7 +63,7 @@ export function Header() {
     <header
       className={cn(
         "fixed inset-x-0 top-0 z-50 transition-[background-color,backdrop-filter,border-color] duration-500",
-        solid ? "border-b border-white/8 bg-ink/75 backdrop-blur-xl" : "border-b border-transparent bg-transparent",
+        solid ? "border-b border-white/8 bg-ink/90 backdrop-blur-xl" : "border-b border-transparent bg-transparent",
       )}
     >
       <div className="mx-auto flex h-16 max-w-[1400px] items-center justify-between px-5 md:h-20 md:px-10">

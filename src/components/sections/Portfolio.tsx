@@ -20,9 +20,9 @@ export function Portfolio() {
   const label = (id: PortfolioCategory) => portfolioCategories.find((c) => c.id === id)?.label ?? id;
 
   return (
-    <section id="portfolio" aria-labelledby="portfolio-title" className="bg-ink-2 px-5 py-24 md:px-10 md:py-36">
+    <section id="portfolio" aria-labelledby="portfolio-title" className="px-5 py-24 md:px-10 md:py-36">
       <div className="mx-auto max-w-[1400px]">
-        <SectionHeading eyebrow="Portfólio" title={<span id="portfolio-title">PROJECTOS QUE <span className="text-brand">FALAM POR SI.</span></span>} />
+        <SectionHeading eyebrow="Portfólio" title={<span id="portfolio-title">PROJECTOS QUE <span className="mark-gold">FALAM POR SI.</span></span>} />
 
         <div role="tablist" aria-label="Filtrar por categoria" className="-mx-5 mb-10 flex gap-2 overflow-x-auto px-5 pb-2 md:mx-0 md:flex-wrap md:px-0">
           {[{ id: "todos" as const, label: "Todos" }, ...portfolioCategories].map((c) => (
@@ -33,7 +33,7 @@ export function Portfolio() {
               onClick={() => setFilter(c.id)}
               className={cn(
                 "shrink-0 rounded-full border px-4 py-2 text-[12px] font-semibold tracking-[0.1em] uppercase transition",
-                filter === c.id ? "border-brand bg-brand text-ink" : "border-white/12 text-white/65 hover:border-white/40 hover:text-white",
+                filter === c.id ? "border-coal bg-coal text-brand" : "border-[#252525]/20 bg-white/60 text-[#252525]/75 hover:border-coal hover:text-coal",
               )}
             >
               {c.label}
@@ -57,13 +57,13 @@ export function Portfolio() {
                     )}
                   </button>
                   <div className="p-6">
-                    <p className="text-[11px] font-semibold tracking-[0.2em] text-brand uppercase">
+                    <p className="text-[11px] font-semibold tracking-[0.2em] text-gold-deep uppercase">
                       {label(p.category)}
                       {p.year ? ` · ${p.year}` : ""}
                     </p>
                     <h3 className="mt-2 font-display text-xl font-semibold">{p.title}</h3>
-                    {p.client && <p className="mt-1 text-sm text-white/50">{p.client}</p>}
-                    <p className="mt-3 text-sm leading-relaxed text-white/65">{p.description}</p>
+                    {p.client && <p className="text-faint mt-1 text-sm">{p.client}</p>}
+                    <p className="mt-3 text-sm text-muted leading-relaxed">{p.description}</p>
                   </div>
                 </article>
               </li>
@@ -73,22 +73,22 @@ export function Portfolio() {
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {[0, 1, 2].map((i) => (
               <div key={i} className={cn("card relative aspect-[4/3] overflow-hidden", i > 0 && "hidden sm:block", i > 1 && "sm:hidden lg:block")} aria-hidden>
-                <div className="absolute inset-0 bg-[linear-gradient(110deg,transparent_30%,rgba(255,204,0,.06)_50%,transparent_70%)]" />
+                <div className="absolute inset-0 bg-[linear-gradient(110deg,transparent_30%,rgba(255,204,0,.18)_50%,transparent_70%)]" />
                 <div className="absolute bottom-6 left-6 space-y-2">
-                  <div className="h-2 w-20 rounded bg-brand/30" />
-                  <div className="h-3 w-40 rounded bg-white/10" />
-                  <div className="h-3 w-28 rounded bg-white/10" />
+                  <div className="h-2 w-20 rounded bg-brand/70" />
+                  <div className="h-3 w-40 rounded bg-[#252525]/10" />
+                  <div className="h-3 w-28 rounded bg-[#252525]/10" />
                 </div>
-                <span className="absolute top-1/2 left-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 text-white/30">
+                <span className="absolute top-1/2 left-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-[#252525]/20 text-[#252525]/35">
                   <IconPlay />
                 </span>
               </div>
             ))}
             <div className="flex flex-col items-start justify-center gap-4 sm:col-span-2 lg:col-span-3" role="status">
-              <p className="text-lg text-white/80">
+              <p className="text-soft text-lg">
                 {filter === "todos" ? "Os nossos projectos estão a ser preparados para publicação." : `Em breve: projectos de ${label(filter as PortfolioCategory)}.`}
               </p>
-              <p className="text-sm text-white/50">Quer ver exemplos do nosso trabalho? Pedimos-lhe apenas o contexto do seu projecto.</p>
+              <p className="text-muted text-sm">Quer ver exemplos do nosso trabalho? Pedimos-lhe apenas o contexto do seu projecto.</p>
               <button type="button" className="btn-ghost" onClick={() => openQuote("geral")}>
                 Pedir exemplos e orçamento
               </button>
@@ -98,7 +98,7 @@ export function Portfolio() {
       </div>
 
       {playing?.video && (
-        <div role="dialog" aria-modal="true" aria-label={playing.title} className="fixed inset-0 z-[70] flex items-center justify-center bg-ink/95 p-4" onClick={() => setPlaying(null)}>
+        <div role="dialog" aria-modal="true" aria-label={playing.title} className="fixed inset-0 z-[70] flex items-center justify-center bg-ink/95 p-4 text-white" onClick={() => setPlaying(null)}>
           <button type="button" autoFocus className="absolute top-5 right-5 flex h-11 w-11 items-center justify-center rounded-full border border-white/15" aria-label="Fechar vídeo" onClick={() => setPlaying(null)}>
             <IconClose />
           </button>

@@ -27,13 +27,13 @@ export function StudioGallery() {
   }, [open]);
 
   return (
-    <section id="estudio" aria-labelledby="estudio-title" className="px-5 py-24 md:px-10 md:py-36">
+    <section id="estudio" aria-labelledby="estudio-title" className="silver-band px-5 py-24 md:px-10 md:py-36">
       <div className="mx-auto max-w-[1400px]">
         <SectionHeading
           eyebrow="Nosso estúdio"
           title={
             <span id="estudio-title">
-              UM ESPAÇO PENSADO PARA <span className="text-brand">PRODUZIR.</span>
+              UM ESPAÇO PENSADO PARA <span className="mark-gold">PRODUZIR.</span>
             </span>
           }
           intro="Sala de podcast, equipamento de filmagem, iluminação profissional, área de gravação, recepção e mesa de produção — com a identidade visual VIRALIZA em cada detalhe."
@@ -41,7 +41,7 @@ export function StudioGallery() {
         <ul className="grid auto-rows-[220px] grid-cols-1 gap-4 sm:grid-cols-2 md:auto-rows-[280px] lg:grid-cols-4">
           {gallery.map((g, i) => (
             <Reveal as="li" key={g.src} delay={(i % 4) * 80} className={cn(g.wide && "sm:col-span-2", i === 0 && "lg:row-span-2")}>
-              <button type="button" onClick={() => setOpen(i)} className="group relative block h-full w-full overflow-hidden rounded-3xl border border-white/8 text-left" aria-label={`Ampliar: ${g.title}`}>
+              <button type="button" onClick={() => setOpen(i)} className="group relative block h-full w-full overflow-hidden photo-frame rounded-3xl text-left text-white" aria-label={`Ampliar: ${g.title}`}>
                 <Image src={g.src} alt={`${g.title} — ${g.caption}`} fill sizes="(min-width: 1024px) 50vw, 100vw" className="object-cover transition-transform duration-[1.2s] ease-out group-hover:scale-105" />
                 <div className="absolute inset-0 bg-gradient-to-t from-ink/90 via-ink/10 to-transparent" />
                 <div className="absolute inset-x-0 bottom-0 p-5 md:p-6">
@@ -55,13 +55,13 @@ export function StudioGallery() {
             </Reveal>
           ))}
         </ul>
-        <p className="mt-6 text-xs text-white/40">
+        <p className="text-muted mt-6 text-xs">
           As imagens apresentadas são visualizações conceptuais do estúdio e dos equipamentos. Fotografias das instalações serão publicadas assim que disponíveis.
         </p>
       </div>
 
       {open !== null && (
-        <div role="dialog" aria-modal="true" aria-label={gallery[open].title} className="fixed inset-0 z-[70] flex flex-col bg-ink/95 backdrop-blur-xl" onClick={() => setOpen(null)}>
+        <div role="dialog" aria-modal="true" aria-label={gallery[open].title} className="fixed inset-0 z-[70] flex flex-col bg-ink/95 text-white backdrop-blur-xl" onClick={() => setOpen(null)}>
           <div className="flex items-center justify-between p-5">
             <p className="text-sm text-white/70">
               {open + 1} / {gallery.length} · {gallery[open].title}
@@ -74,10 +74,10 @@ export function StudioGallery() {
             <Image src={gallery[open].src} alt={gallery[open].caption} fill sizes="100vw" className="object-contain p-4" />
           </div>
           <div className="flex justify-center gap-3 p-5" onClick={(e) => e.stopPropagation()}>
-            <button type="button" className="btn-ghost" onClick={() => setOpen((open - 1 + gallery.length) % gallery.length)}>
+            <button type="button" className="btn-ghost-dark" onClick={() => setOpen((open - 1 + gallery.length) % gallery.length)}>
               Anterior
             </button>
-            <button type="button" className="btn-ghost" onClick={() => setOpen((open + 1) % gallery.length)}>
+            <button type="button" className="btn-ghost-dark" onClick={() => setOpen((open + 1) % gallery.length)}>
               Seguinte
             </button>
           </div>

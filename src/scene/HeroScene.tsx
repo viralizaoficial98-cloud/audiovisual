@@ -7,6 +7,7 @@ import { Bloom, EffectComposer, ToneMapping, Vignette } from "@react-three/postp
 import { ToneMappingMode } from "postprocessing";
 import * as THREE from "three";
 import type { QualityTier } from "@/lib/quality";
+import { onHeroProgress } from "@/animation/heroState";
 import { AnimationDriver } from "./parts/driver";
 import { SceneAssetsProvider } from "./context";
 import { CameraRig } from "./CameraRig";
@@ -34,10 +35,13 @@ const DPR: Record<QualityTier, [number, number]> = {
 export default function HeroScene({ tier, active, onReady }: Props) {
   const [dpr, setDpr] = useState(DPR[tier][1]);
   const post = tier !== "low";
+  // Telemóveis/tablets: desenha só quando o scroll muda (+ atmosfera a 15 fps) — menos GPU,
+  // menos bateria e menos aquecimento. O desktop mantém o ciclo contínuo.
+  const [touch] = useState(() => typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches);
 
   return (
     <Canvas
-      frameloop={active ? "always" : "never"}
+      frameloop={!active ? "never" : touch ? "demand" : "always"}
       dpr={dpr}
       shadows={tier === "high" ? "soft" : false}
       camera={{ fov: 38, near: 0.03, far: 80, position: [2.2, 1.64, 3.9] }}
@@ -65,6 +69,7 @@ export default function HeroScene({ tier, active, onReady }: Props) {
             <LightingKit />
             <PodcastStudio />
             <ReadySignal onReady={onReady} />
+            {touch && active && <OnDemandInvalidator />}
           </SceneAssetsProvider>
         </Suspense>
         {post && (
@@ -77,6 +82,21 @@ export default function HeroScene({ tier, active, onReady }: Props) {
       </AnimationDriver>
     </Canvas>
   );
+}
+
+/** Renderização a pedido: um frame por cada mudança de progresso + atmosfera lenta. */
+function OnDemandInvalidator() {
+  const invalidate = useThree((s) => s.invalidate);
+  useEffect(() => {
+    invalidate();
+    const off = onHeroProgress(() => invalidate());
+    const idle = window.setInterval(() => invalidate(), 66);
+    return () => {
+      off();
+      window.clearInterval(idle);
+    };
+  }, [invalidate]);
+  return null;
 }
 
 /** Avisa o DOM quando a cena compilou e desenhou o primeiro frame (remove o loader). */

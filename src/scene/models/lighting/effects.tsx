@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { ease, lerp, range, type Vec3 } from "@/animation/math";
 import { STUDIO_STEPS } from "@/animation/phases";
 import { useAssets } from "../../context";
+import { useThree } from "@react-three/fiber";
 import { useAnim, useTier } from "../../parts/driver";
 import { BeamCone } from "../rigs";
 import { SET_FOCUS } from "../../layout";
@@ -54,6 +55,7 @@ export type KitMaterials = ReturnType<typeof useKitMaterials>;
 
 export function KitEffects({ m, ledL, ledR, softbox, ring }: { m: KitMaterials; ledL: Vec3; ledR: Vec3; softbox: Vec3; ring: Vec3 }) {
   const tier = useTier();
+  const size = useThree((s) => s.size);
   const work = useRef<THREE.SpotLight>(null);
   const sweep = useRef<THREE.PointLight>(null);
   const wave = useRef<THREE.Group>(null);
@@ -84,7 +86,7 @@ export function KitEffects({ m, ledL, ledR, softbox, ring }: { m: KitMaterials; 
     targets.focus.position.set(lerp(KIT_FOCUS[0], SET_FOCUS[0], re), lerp(KIT_FOCUS[1], SET_FOCUS[1], re), lerp(KIT_FOCUS[2], SET_FOCUS[2], re));
     // luz de trabalho por cima do kit (desce quando os equipamentos acendem)
     const kitOut = 1 - range(p, 0.55, 0.6);
-    if (work.current) work.current.intensity = active ? on(p, w(0, 0.08)) * lerp(60, 28, on(p, w(0.75, 0.9))) * kitOut : 0;
+    if (work.current) work.current.intensity = active ? on(p, w(0, 0.08)) * lerp(60, 28, on(p, w(0.75, 0.9))) * kitOut * (size.width / Math.max(1, size.height) < 1 ? 0.5 : 1) : 0;
     // luz ambiente da fase LUZ para o kit se ler bem (o estúdio tem a sua própria luz depois)
     const amb = active ? on(p, w(0, 0.08)) * kitOut : 0;
     if (fill.current) fill.current.intensity = amb * 0.35;
@@ -124,7 +126,9 @@ export function KitEffects({ m, ledL, ledR, softbox, ring }: { m: KitMaterials; 
     m.diffuser.emissiveIntensity = S * 2.2 * b;
     // durante a montagem do estúdio os focos baixam (não iluminam o chão à frente) e voltam
     // à intensidade total quando são reorientados para o set (só actua depois de 0.55)
-    const dim = 1 - 0.7 * range(p, 0.55, 0.58) * (1 - range(p, REAIM[0], REAIM[1]));
+    // ecrãs verticais (telemóvel) vêem mais chão: focos mais suaves para não criar poças de luz
+    const portrait = size.width / Math.max(1, size.height) < 1 ? 0.45 : 1;
+    const dim = portrait * (1 - 0.7 * range(p, 0.55, 0.58) * (1 - range(p, REAIM[0], REAIM[1])));
     if (spotL.current) spotL.current.intensity = L * 15 * (1 + 0.2 * fin(p)) * dim;
     if (spotR.current) spotR.current.intensity = R * 15 * (1 + 0.2 * fin(p)) * dim;
     if (spotS.current) spotS.current.intensity = S * 20 * (1 + 0.2 * fin(p)) * dim;

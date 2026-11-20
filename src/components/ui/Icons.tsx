@@ -91,3 +91,21 @@ export const IconPlay = ({ size = 22, ...p }: P) => (
 );
 
 export const serviceIcons = { event: IconEvent, video: IconVideo, photo: IconPhoto, live: IconLive, post: IconPost, podcast: IconMic };
+export const IconCheck = ({ size = 18, ...p }: P) => (
+  <svg {...base(size, p)}>
+    <path d="m5 12.5 4.2 4.2L19 7" />
+  </svg>
+);
+export const IconCut = ({ size, ...p }: P) => (
+  <svg {...base(size, p)}>
+    <circle cx="6" cy="7" r="2.5" />
+    <circle cx="6" cy="17" r="2.5" />
+    <path d="M8.2 8.3 20 18M8.2 15.7 20 6" />
+  </svg>
+);
+export const IconInfo = ({ size = 18, ...p }: P) => (
+  <svg {...base(size, p)}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 11v6M12 7.5v.5" />
+  </svg>
+);

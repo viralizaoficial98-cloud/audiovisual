@@ -100,7 +100,9 @@ export function CameraRig({ parallax = true }: { parallax?: boolean }) {
       fov = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(fov / 2)) * fovGain));
       const rest = need / fovGain;
       if (rest > 1) {
-        const d = Math.pow(rest, lerp(0.6, 0.12, inRoom));
+        // fases da câmara e da LUZ: recua o necessário para manter o mesmo campo de visão
+        // horizontal do desktop (nada fica cortado); dentro da sala quase não recua
+        const d = Math.pow(rest, lerp(1.0, 0.12, inRoom));
         pos.sub(tgt).multiplyScalar(d).add(tgt);
       }
       // no telemóvel o set de podcast é o protagonista: centra a câmara nele

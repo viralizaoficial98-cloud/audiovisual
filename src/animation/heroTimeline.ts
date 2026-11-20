@@ -38,6 +38,9 @@ function phaseOut(tl: gsap.core.Timeline, root: HTMLElement, phase: string, [pa,
 
 export function buildHeroTimeline(section: HTMLElement, stage: HTMLElement, opts: { scrub: number }) {
   gsap.registerPlugin(ScrollTrigger);
+  // iOS/Android: a barra de endereço a aparecer/desaparecer não deve recalcular o banner
+  // (evita saltos de scroll durante o gesto); o palco usa 100svh, logo não muda de tamanho.
+  ScrollTrigger.config({ ignoreMobileResize: true });
   // Em dispositivos lentos (frames > 500 ms) o "lag smoothing" faria o scrub avançar só 33 ms
   // por frame e a animação ficaria a arrastar-se atrás do scroll. Sem ele, acompanha o scroll.
   gsap.ticker.lagSmoothing(0);

@@ -44,7 +44,14 @@ export function GoldParticles({ tier }: { tier: QualityTier }) {
     let raf = 0;
     let running = false;
     const t0 = performance.now();
+    let lastDraw = 0;
     const tick = (now: number) => {
+      // dispositivos de toque: 30 fps chegam para as partículas (poupa bateria)
+      if (coarse && now - lastDraw < 32) {
+        raf = requestAnimationFrame(tick);
+        return;
+      }
+      lastDraw = now;
       const p = heroState.progress;
       const fade = 1 - ease.inOutSine(range(p, end - 0.02, end + 0.04));
       const cw = canvas.width;

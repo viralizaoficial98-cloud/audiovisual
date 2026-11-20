@@ -85,8 +85,13 @@ for (const vp of [
   });
 
   await step(`${tag} a página continua depois da animação (sem saltos)`, async () => {
-    const before = await page.evaluate(() => document.getElementById("servicos").getBoundingClientRect().top);
-    assert.ok(Math.abs(before - (await page.evaluate(() => innerHeight))) < 2, `serviços começa logo após o banner (top=${before})`);
+    // banner → faixa de transição escuro→prata → Serviços, sem espaços nem sobreposições
+    const [band, bandH, before, vh] = await page.evaluate(() => {
+      const b = document.querySelector(".silver-transition").getBoundingClientRect();
+      return [b.top, b.height, document.getElementById("servicos").getBoundingClientRect().top, innerHeight];
+    });
+    assert.ok(Math.abs(band - vh) < 2, `transição começa logo após o banner (top=${band})`);
+    assert.ok(Math.abs(before - (vh + bandH)) < 2, `serviços começa logo após a transição (top=${before})`);
     await page.mouse.move(vp.width / 2, vp.height / 2);
     await page.mouse.wheel(0, 600);
     await page.waitForFunction((b) => document.getElementById("servicos").getBoundingClientRect().top < b - 300, before, { timeout: 5000 }).catch(() => {});
@@ -125,6 +130,31 @@ for (const vp of [
     const text = decodeURIComponent(opened[0].split("text=")[1]);
     assert.ok(opened[0].startsWith("https://wa.me/244973581978?text="));
     for (const s of ["Ana Teste", "15/06/2099", "10:30", "3 horas", "120.000 Kz", "Podcast em vídeo"]) assert.ok(text.includes(s), `falta "${s}"`);
+  });
+
+  await step(`${tag} tabela de preços: "Reservar" selecciona o pacote (preço fixo)`, async () => {
+    await page.evaluate(() => (window.__opened = []));
+    await page.locator("#precos").scrollIntoViewIfNeeded();
+    const t = page.locator("#precos");
+    for (const s of ["40.000 Kz", "80.000 Kz", "120.000 Kz", "Não incluem edição, montagem, pós-produção ou finalização dos vídeos pela equipa Viraliza."]) assert.ok((await t.textContent()).includes(s), `falta "${s}"`);
+    await t.getByRole("button", { name: "Reservar Profissional" }).click();
+    const f = page.locator("#reserva form");
+    await page.waitForFunction(() => document.querySelector('[data-testid="plan-name"]')?.textContent?.includes("Profissional"));
+    assert.equal(await f.locator('[name="plan"]').inputValue(), "profissional");
+    assert.equal((await f.getByTestId("estimate").textContent()).trim(), "200.000 Kz");
+    // mudar as horas NÃO multiplica o pacote
+    await f.getByRole("button", { name: "Mais uma hora" }).click();
+    assert.equal((await f.getByTestId("estimate").textContent()).trim(), "200.000 Kz");
+    await f.getByRole("button", { name: /Solicitar reserva pelo WhatsApp/i }).click();
+    const opened = await page.evaluate(() => window.__opened);
+    assert.equal(opened.length, 1);
+    const text = decodeURIComponent(opened[0].split("text=")[1]);
+    assert.ok(opened[0].startsWith("https://wa.me/244973581978?text="));
+    for (const s of ["Pacote Profissional", "200.000 Kz (pacote)", "Ana Teste", "pré-reserva"]) assert.ok(text.toLowerCase().includes(s.toLowerCase()), `falta "${s}"`);
+    assert.ok(!text.includes("800.000"), "o pacote não deve ser multiplicado");
+    // voltar à gravação bruta: 1h
+    await page.locator("#precos").getByRole("button", { name: /^Reservar 1 hora/ }).click();
+    await page.waitForFunction(() => document.querySelector('[data-testid="estimate"]')?.textContent?.trim() === "40.000 Kz");
   });
 
   await step(`${tag} pré-reserva: validação bloqueia envio incompleto`, async () => {

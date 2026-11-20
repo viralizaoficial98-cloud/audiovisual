@@ -8,6 +8,12 @@
   --color-brand: #ffcc00;
   --color-brand-deep: #e0b000;
   --color-gold: #c9a14a;
+  /* identidade Silver (secções depois do banner) */
+  --color-silver: #c0c0c0;
+  --color-silver-light: #e5e7eb;
+  --color-metal: #a8adb4;
+  --color-coal: #252525;
+  --color-gold-deep: #7a5c00;
   --font-display: "Sora Variable", "Sora", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
 
@@ -96,4 +102,331 @@ body {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+@layer components {
+/* =====================================================================
+   IDENTIDADE SILVER — todas as secções depois do banner cinematográfico
+   (o banner mantém preto + dourado). Contraste: texto grafite #252525
+   sobre prata clara; dourado usado em fundos, marcadores e botões.
+   ===================================================================== */
+.text-muted {
+  color: rgb(255 255 255 / 0.62);
+}
+.text-soft {
+  color: rgb(255 255 255 / 0.85);
+}
+.text-faint {
+  color: rgb(255 255 255 / 0.4);
+}
+.mark-gold {
+  color: var(--color-brand);
+}
+.field-optional,
+.field-hint {
+  color: rgb(255 255 255 / 0.4);
+}
+.field-error {
+  color: #fca5a5;
+}
+
+.theme-silver {
+  color: var(--color-coal);
+  background:
+    radial-gradient(1200px 500px at 15% 0%, rgb(255 255 255 / 0.55), transparent 60%),
+    linear-gradient(180deg, #e9ebee 0%, #dcdfe3 45%, #d3d6db 100%);
+}
+.theme-silver .text-muted {
+  color: rgb(37 37 37 / 0.7);
+}
+.theme-silver .text-soft {
+  color: rgb(37 37 37 / 0.88);
+}
+.theme-silver .text-faint {
+  color: rgb(37 37 37 / 0.45);
+}
+.theme-silver .text-gold-deep {
+  color: var(--color-gold-deep);
+}
+.theme-silver .border-line {
+  border-color: rgb(37 37 37 / 0.12);
+}
+.theme-silver .bg-chip {
+  background: rgb(255 255 255 / 0.7);
+}
+/* destaque dourado tipo marcador — legível sobre prata */
+.theme-silver .mark-gold {
+  color: inherit;
+  background: linear-gradient(transparent 60%, #ffcc00 60%, #ffcc00 90%, transparent 90%);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  padding: 0 0.06em;
+}
+.theme-silver .section-title {
+  color: var(--color-coal);
+}
+.theme-silver .eyebrow {
+  color: var(--color-coal);
+}
+.theme-silver .card {
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.92), rgb(244 245 247 / 0.78));
+  border-color: rgb(37 37 37 / 0.1);
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.9) inset,
+    0 24px 48px -28px rgb(37 37 37 / 0.45);
+}
+.theme-silver .field-label {
+  color: rgb(37 37 37 / 0.72);
+}
+.theme-silver .field-optional,
+.theme-silver .field-hint {
+  color: rgb(37 37 37 / 0.5);
+}
+.theme-silver .field-error {
+  color: #b42318;
+}
+.theme-silver .field {
+  background: #fff;
+  border-color: rgb(37 37 37 / 0.2);
+  color: var(--color-coal);
+}
+.theme-silver .field::placeholder {
+  color: rgb(37 37 37 / 0.4);
+}
+.theme-silver .field:focus {
+  border-color: #c79c00;
+  box-shadow: 0 0 0 3px rgb(255 204 0 / 0.35);
+  background: #fff;
+}
+.theme-silver .field[aria-invalid="true"] {
+  border-color: #b42318;
+}
+.theme-silver option {
+  background: #fff;
+  color: var(--color-coal);
+}
+.theme-silver .btn-ghost {
+  border-color: rgb(37 37 37 / 0.35);
+  background: rgb(255 255 255 / 0.55);
+  color: var(--color-coal);
+}
+.theme-silver .btn-ghost:hover {
+  border-color: var(--color-coal);
+  background: var(--color-coal);
+  color: #fff;
+}
+.theme-silver :focus-visible {
+  outline-color: var(--color-coal);
+}
+
+/* faixas alternadas: prata metálica um pouco mais escura */
+.silver-band {
+  background:
+    radial-gradient(900px 420px at 85% 10%, rgb(255 255 255 / 0.5), transparent 60%),
+    linear-gradient(180deg, #d6d9de 0%, #c9cdd3 100%);
+}
+/* transição do banner escuro para o conteúdo prateado */
+.silver-transition {
+  height: clamp(120px, 22vh, 240px);
+  background: linear-gradient(180deg, #080808 0%, #1b1b1c 22%, #4a4d52 52%, #a8adb4 78%, #e9ebee 100%);
+}
+
+/* blocos do formulário e da tabela de preços */
+.icon-chip {
+  background: var(--color-coal);
+  color: var(--color-brand);
+}
+.chip {
+  border: 1px solid rgb(37 37 37 / 0.12);
+  background: rgb(255 255 255 / 0.7);
+  color: rgb(37 37 37 / 0.85);
+}
+.stepper {
+  display: inline-flex;
+  height: 3rem;
+  width: 3rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  font-size: 1.25rem;
+}
+.theme-silver .stepper {
+  border-color: rgb(37 37 37 / 0.2);
+  background: #fff;
+  color: var(--color-coal);
+}
+.stepper:hover:not(:disabled) {
+  border-color: var(--color-brand);
+}
+.stepper:disabled {
+  opacity: 0.35;
+}
+.booking-summary {
+  background: linear-gradient(135deg, #2b2b2c, #1b1b1c);
+  color: #fff;
+  border: 1px solid rgb(255 204 0 / 0.35);
+}
+.booking-summary .text-muted {
+  color: rgb(255 255 255 / 0.65);
+}
+.booking-summary [data-testid="estimate"] {
+  color: var(--color-brand);
+}
+.booking-sent {
+  background: rgb(37 37 37 / 0.06);
+  border: 1px solid rgb(37 37 37 / 0.12);
+}
+.photo-frame {
+  border: 1px solid rgb(37 37 37 / 0.12);
+  box-shadow: 0 30px 60px -30px rgb(37 37 37 / 0.55);
+}
+.pill-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 9999px;
+  border: 1px solid rgb(37 37 37 / 0.15);
+  background: rgb(255 255 255 / 0.65);
+  padding: 0.4rem 0.8rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.notice {
+  background: #fff8d6;
+  border: 1px solid #ecd06a;
+  color: #3a2f00;
+}
+.notice .text-muted {
+  color: #5c4c0a;
+}
+.price-table th,
+.price-table td {
+  padding: 1.1rem 1.5rem;
+  vertical-align: middle;
+}
+.price-table thead th {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgb(37 37 37 / 0.55);
+  background: rgb(37 37 37 / 0.04);
+}
+.price-table tbody tr {
+  border-top: 1px solid rgb(37 37 37 / 0.08);
+  transition: background-color 0.3s;
+}
+.price-table tbody tr:hover {
+  background: rgb(255 204 0 / 0.1);
+}
+.btn-reserve {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: var(--color-coal);
+  color: #fff;
+  padding: 0.7rem 1.4rem;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  transition:
+    background-color 0.3s,
+    color 0.3s,
+    transform 0.3s;
+}
+.btn-reserve:hover {
+  background: var(--color-brand);
+  color: var(--color-ink);
+  transform: translateY(-2px);
+}
+.btn-reserve-block {
+  width: 100%;
+  padding-top: 0.9rem;
+  padding-bottom: 0.9rem;
+}
+.package {
+  background: linear-gradient(180deg, #ffffff, #f1f2f4);
+  border: 1px solid rgb(37 37 37 / 0.1);
+  box-shadow: 0 20px 40px -28px rgb(37 37 37 / 0.5);
+  transition:
+    transform 0.4s cubic-bezier(0.2, 0.7, 0.2, 1),
+    box-shadow 0.4s;
+}
+.package:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 30px 50px -26px rgb(37 37 37 / 0.6);
+}
+.package-icon {
+  background: var(--color-coal);
+  color: var(--color-brand);
+}
+.package-check {
+  color: #a17c00;
+}
+.package-featured {
+  background: linear-gradient(165deg, #2e2e30 0%, #1a1a1b 70%);
+  color: #fff;
+  border: 1px solid rgb(255 204 0 / 0.7);
+  box-shadow:
+    0 0 0 4px rgb(255 204 0 / 0.12),
+    0 30px 60px -24px rgb(37 37 37 / 0.75);
+}
+.package-featured .package-icon {
+  background: var(--color-brand);
+  color: var(--color-ink);
+}
+.package-featured .package-check,
+.package-featured .package-price {
+  color: var(--color-brand);
+}
+.package-badge {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  border-radius: 9999px;
+  background: var(--color-brand);
+  color: var(--color-ink);
+  padding: 0.3rem 0.7rem;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.btn-ghost-dark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border: 1px solid rgb(255 255 255 / 0.25);
+  padding: 0.85rem 1.75rem;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #fff;
+}
+.btn-ghost-dark:hover {
+  border-color: var(--color-brand);
+  color: var(--color-brand);
+}
+.form-ok {
+  color: #6ee7b7;
+}
+.theme-silver .form-ok {
+  color: #116b3c;
+  font-weight: 600;
+}
+.footer-logo {
+  background: linear-gradient(135deg, #2b2b2c, #161617);
+  box-shadow: 0 14px 30px -18px rgb(37 37 37 / 0.8);
+}
+.site-footer {
+  background: linear-gradient(180deg, #c9cdd3 0%, #b9bec5 100%);
+}
+
 }

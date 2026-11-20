@@ -63,15 +63,15 @@ export function ContactForm() {
           {status.kind === "sending" ? "A enviar…" : "Enviar mensagem"}
         </button>
         <div aria-live="polite" className="text-sm">
-          {status.kind === "ok" && <p className="text-emerald-300">Mensagem enviada. Obrigado — responderemos em breve.</p>}
+          {status.kind === "ok" && <p className="form-ok">Mensagem enviada. Obrigado — responderemos em breve.</p>}
           {status.kind === "fallback" && (
-            <p className="text-white/75">
+            <p className="text-soft">
               Envie-nos a mensagem directamente:{" "}
-              <a href={status.wa} target="_blank" rel="noopener noreferrer" className="font-semibold text-brand underline">
+              <a href={status.wa} target="_blank" rel="noopener noreferrer" className="font-semibold underline decoration-brand decoration-2">
                 WhatsApp
               </a>{" "}
               ou{" "}
-              <a href={status.mail} className="font-semibold text-brand underline">
+              <a href={status.mail} className="font-semibold underline decoration-brand decoration-2">
                 e-mail
               </a>
               .

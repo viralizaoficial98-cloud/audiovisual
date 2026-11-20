@@ -9,15 +9,15 @@ function Wrap({ id, label, error, hint, className, optional, children }: Base & 
     <div className={className}>
       <label htmlFor={id} className="field-label">
         {label}
-        {optional && <span className="ml-1 font-normal tracking-normal text-white/35 normal-case">(opcional)</span>}
+        {optional && <span className="field-optional ml-1 font-normal tracking-normal normal-case">(opcional)</span>}
       </label>
       {children}
       {error ? (
-        <p id={`${id}-err`} className="mt-1.5 text-xs text-red-300" role="alert">
+        <p id={`${id}-err`} className="field-error mt-1.5 text-xs" role="alert">
           {error}
         </p>
       ) : hint ? (
-        <p id={`${id}-hint`} className="mt-1.5 text-xs text-white/40">
+        <p id={`${id}-hint`} className="field-hint mt-1.5 text-xs">
           {hint}
         </p>
       ) : null}
@@ -34,7 +34,17 @@ export function TextField({ label, error, hint, className, optional, ...props }:
   );
 }
 
-export function SelectField({ label, error, hint, className, optional, options, placeholder, ...props }: Base & SelectHTMLAttributes<HTMLSelectElement> & { options: string[]; placeholder?: string }) {
+export function SelectField({
+  label,
+  error,
+  hint,
+  className,
+  optional,
+  options,
+  placeholder,
+  optionLabels,
+  ...props
+}: Base & SelectHTMLAttributes<HTMLSelectElement> & { options: string[]; placeholder?: string; optionLabels?: Record<string, string> }) {
   const id = useId();
   return (
     <Wrap id={id} label={label} error={error} hint={hint} className={className} optional={optional}>
@@ -47,7 +57,7 @@ export function SelectField({ label, error, hint, className, optional, options, 
           )}
           {options.map((o) => (
             <option key={o} value={o} className="bg-ink">
-              {o}
+              {optionLabels?.[o] ?? o}
             </option>
           ))}
         </select>
