@@ -7,10 +7,12 @@ import { Environment, Lightformer, MeshReflectorMaterial } from "@react-three/dr
 import { ease, hash, lerp, range, sampleKeys } from "@/animation/math";
 import { PHASES, STUDIO_STEPS } from "@/animation/phases";
 import { useAnim, useTier } from "./parts/driver";
+import { useAssets } from "./context";
 import { HERO_ASSEMBLY as H } from "./layout";
 
 /** Iluminação global + nevoeiro + reflexos de estúdio (lightformers, sem HDRs externos). */
 export function SceneLighting() {
+  const tier = useTier();
   const scene = useThree((s) => s.scene);
   const ambient = useRef<THREE.AmbientLight>(null);
   const hemi = useRef<THREE.HemisphereLight>(null);
@@ -18,6 +20,7 @@ export function SceneLighting() {
   const fill = useRef<THREE.SpotLight>(null);
   const rimA = useRef<THREE.PointLight>(null);
   const rimB = useRef<THREE.PointLight>(null);
+  const floorKey = useRef<THREE.SpotLight>(null);
 
   const fog = useMemo(() => new THREE.FogExp2("#080808", 0.16), []);
   scene.fog = fog;
@@ -52,6 +55,8 @@ export function SceneLighting() {
     if (hemi.current) hemi.current.intensity = 0.12 + kit * 0.3 + room * 0.15 + fin * 0.3;
     if (key.current) key.current.intensity = 34 * product;
     if (fill.current) fill.current.intensity = 9 * product;
+    // luz superior sobre as peças pousadas no chão (apaga-se quando já levitam)
+    if (floorKey.current) floorKey.current.intensity = 16 * (1 - ease.inOutSine(range(p, 0.1, 0.2)));
     const rim = 1 - ease.inOutSine(range(p, PHASES.lights.start + 0.04, PHASES.lights.start + 0.14));
     if (rimA.current) rimA.current.intensity = 5 * rim;
     if (rimB.current) rimB.current.intensity = 3.5 * rim;
@@ -63,7 +68,22 @@ export function SceneLighting() {
       <ambientLight ref={ambient} intensity={0.08} color="#fff3e0" />
       <hemisphereLight ref={hemi} args={["#ffe6b5", "#1a1208", 0.12]} />
       <primitive object={target} />
-      <spotLight ref={key} position={[H[0] - 1.3, H[1] + 1.7, H[2] + 1.7]} target={target} angle={0.5} penumbra={1} decay={1.8} distance={8} intensity={34} color="#fff4e2" />
+      <spotLight
+        ref={key}
+        position={[H[0] - 1.3, H[1] + 1.7, H[2] + 1.7]}
+        target={target}
+        angle={0.55}
+        penumbra={1}
+        decay={1.8}
+        distance={8}
+        intensity={34}
+        color="#fff4e2"
+        castShadow={tier === "high"}
+        shadow-mapSize={[1024, 1024]}
+        shadow-bias={-0.0003}
+        shadow-normalBias={0.015}
+      />
+      <spotLight ref={floorKey} position={[H[0] + 0.2, H[1] + 2.6, H[2] + 0.6]} target={target} angle={0.75} penumbra={1} decay={1.6} distance={7} intensity={16} color="#ffe7c0" />
       <spotLight ref={fill} position={[H[0] + 1.7, H[1] + 0.3, H[2] + 1.5]} target={target} angle={0.6} penumbra={1} decay={1.8} distance={8} intensity={9} color="#dfe8ff" />
       <pointLight ref={rimA} position={[H[0] + 0.9, H[1] + 0.55, H[2] - 0.9]} color="#ffb400" distance={4} decay={1.6} intensity={5} />
       <pointLight ref={rimB} position={[H[0] - 1.1, H[1] + 0.3, H[2] - 0.7]} color="#ffcc33" distance={4} decay={1.6} intensity={3.5} />
@@ -109,6 +129,37 @@ export function Floor() {
 /** Bokeh dourado de fundo e poeira em suspensão — atmosfera das fases 1–2. */
 export function Atmosphere() {
   const tier = useTier();
+  const { tex } = useAssets();
+  // néons e símbolo V desfocados ao fundo (linguagem visual das renders oficiais)
+  const backdrop = useMemo(() => {
+    const blurTex = (draw: (g: CanvasRenderingContext2D) => void, w: number, h: number) => {
+      const c = document.createElement("canvas");
+      c.width = w;
+      c.height = h;
+      const g = c.getContext("2d")!;
+      g.filter = "blur(10px)";
+      draw(g);
+      const t = new THREE.CanvasTexture(c);
+      t.colorSpace = THREE.SRGBColorSpace;
+      return t;
+    };
+    const neon = blurTex((g) => {
+      g.fillStyle = "#ffb000";
+      g.fillRect(30, 26, 452, 12);
+    }, 512, 64);
+    const markImg = tex.mark.image as HTMLImageElement;
+    const mark = blurTex((g) => g.drawImage(markImg, 40, 40, 176, (176 * markImg.height) / markImg.width), 256, 256);
+    const mk = (map: THREE.Texture, color: string) =>
+      new THREE.SpriteMaterial({ map, color, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
+    return {
+      items: [
+        { m: mk(neon, "#ffffff"), pos: [H[0] - 1.6, H[1] + 1.25, H[2] - 3.2] as [number, number, number], scale: [2.2, 0.28], base: 0.55 },
+        { m: mk(neon, "#ffffff"), pos: [H[0] + 2.2, H[1] + 1.55, H[2] - 3.6] as [number, number, number], scale: [1.8, 0.24], base: 0.45 },
+        { m: mk(neon, "#ffffff"), pos: [H[0] - 2.4, H[1] + 0.35, H[2] - 3.0] as [number, number, number], scale: [1.4, 0.2], base: 0.35 },
+        { m: mk(mark, "#ffffff"), pos: [H[0] + 1.5, H[1] + 0.95, H[2] - 3.4] as [number, number, number], scale: [1.5, 1.5], base: 0.4 },
+      ],
+    };
+  }, [tex.mark]);
   const bokehTex = useMemo(() => {
     const c = document.createElement("canvas");
     c.width = c.height = 128;
@@ -138,7 +189,7 @@ export function Atmosphere() {
         });
         return {
           m,
-          pos: [H[0] - 2.4 + hash(i + 9) * 5, H[1] - 0.6 + hash(i + 21) * 1.9, H[2] - 2.2 - hash(i + 33) * 2.5] as [number, number, number],
+          pos: [H[0] - 2.4 + hash(i + 9) * 5, H[1] + 0.1 + hash(i + 21) * 1.9, H[2] - 2.2 - hash(i + 33) * 2.5] as [number, number, number],
           size: 0.25 + hash(i + 40) * 0.6,
           base: 0.12 + hash(i + 51) * 0.22,
         };
@@ -174,14 +225,15 @@ export function Atmosphere() {
   const dustRef = useRef<THREE.Points>(null);
 
   useAnim((p, t) => {
-    const fade = 1 - ease.inOutSine(range(p, 0.36, 0.47));
+    const fade = 1 - ease.inOutSine(range(p, 0.4, 0.48));
     bokeh.forEach((b, i) => {
       b.m.opacity = b.base * fade * (0.8 + 0.2 * Math.sin(t * 0.4 + i));
     });
+    backdrop.items.forEach((b) => (b.m.opacity = b.base * fade));
     dustMat.opacity = 0.75 * fade;
     if (dustRef.current) {
       dustRef.current.rotation.y = t * 0.02;
-      dustRef.current.position.y = H[1] + Math.sin(t * 0.15) * 0.03;
+      dustRef.current.position.y = H[1] + 0.45 + Math.sin(t * 0.15) * 0.03;
       dustRef.current.visible = fade > 0.001;
     }
   });
@@ -190,6 +242,9 @@ export function Atmosphere() {
     <group>
       {bokeh.map((b, i) => (
         <sprite key={i} material={b.m} position={b.pos} scale={[b.size, b.size, 1]} />
+      ))}
+      {backdrop.items.map((b, i) => (
+        <sprite key={`bd${i}`} material={b.m} position={b.pos} scale={[b.scale[0], b.scale[1], 1]} />
       ))}
       <points ref={dustRef} position={H} geometry={dust} material={dustMat} />
     </group>

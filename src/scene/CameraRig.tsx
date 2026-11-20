@@ -18,14 +18,22 @@ const k = (at: number, pos: [number, number, number], tgt: [number, number, numb
 const h = (dx: number, dy: number, dz: number): [number, number, number] => [H[0] + dx, H[1] + dy, H[2] + dz];
 
 export const CAMERA_KEYS: K[] = [
-  k(0.0, h(0.02, 0.2, 2.05), h(0.06, -0.02, 0), 38),
-  k(0.15, h(0.24, 0.22, 1.9), h(0.05, 0.0, 0), 37),
-  k(0.25, h(0.3, 0.13, 1.5), h(-0.06, 0.0, 0), 36),
-  k(0.29, h(0.4, 0.2, 2.2), h(-0.06, 0.0, 0), 37),
-  // até ~0.33 a cena 3D está atrás das fotografias; a câmara virtual recua para
-  // um plano médio, de onde "atravessa" a lente (portal) e continua o movimento.
-  k(0.33, [3.05, 2.05, 7.2], [3.05, 1.35, 0.9], 40),
-  k(0.36, [3.05, 2.0, 6.4], [3.1, 1.32, 0.9], 40),
+  // peças pousadas no chão — plano largo, ligeiramente picado
+  k(0.0, h(0.05, 0.78, 2.15), h(-0.02, -0.4, 0.05), 40),
+  k(0.06, h(0.12, 0.66, 2.0), h(-0.02, -0.32, 0.04), 39),
+  // levitação: a câmara desce ao nível da constelação
+  k(0.12, h(0.25, 0.3, 1.8), h(-0.08, 0.02, 0), 38),
+  // estrutura interna e electrónica: aproximação
+  k(0.18, h(0.34, 0.2, 1.38), h(-0.02, 0.0, 0), 36),
+  k(0.24, h(0.2, 0.14, 1.12), h(0.02, 0.0, 0), 35),
+  // conjunto óptico: vista frontal-esquerda, ao longo do eixo da lente
+  k(0.29, h(-0.55, 0.12, 1.25), h(-0.3, 0.0, 0.05), 36),
+  // painéis e acessórios (câmara à direita, espaço para o texto)
+  k(0.335, h(0.0, 0.24, 1.5), h(-0.3, 0.04, 0), 37),
+  k(0.362, h(0.0, 0.16, 1.32), h(-0.26, 0.05, 0), 36),
+  // revelação: a câmara roda para a frente; aproximação à lente
+  k(0.39, h(-0.2, 0.16, 1.5), h(-0.24, 0.1, 0.2), 35),
+  k(0.4, h(0.0, 0.2, 1.55), h(-0.1, 0.08, 0.1), 36),
   k(0.42, [3.0, 1.85, 4.7], [3.25, 1.3, 0.9], 40),
   k(0.49, [2.45, 1.85, 5.7], [2.25, 1.2, -1.0], 40),
   k(0.55, [2.2, 1.8, 5.75], [2.0, 1.25, -1.6], 40),
@@ -69,11 +77,11 @@ export function CameraRig({ parallax = true }: { parallax?: boolean }) {
       const need = DESIGN_ASPECT / aspect;
       const inRoom = range(p, 0.38, 0.5);
       // dentro da sala alarga-se mais o FOV e quase não se recua (para não sair pelas paredes)
-      const fovGain = Math.min(need, lerp(1.5, 2.1, inRoom));
+      const fovGain = Math.min(need, lerp(1.8, 2.1, inRoom));
       fov = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(fov / 2)) * fovGain));
       const rest = need / fovGain;
       if (rest > 1) {
-        const d = Math.pow(rest, lerp(0.9, 0.12, inRoom));
+        const d = Math.pow(rest, lerp(0.6, 0.12, inRoom));
         pos.sub(tgt).multiplyScalar(d).add(tgt);
       }
       // no telemóvel o set de podcast é o protagonista: centra a câmara nele

@@ -14,28 +14,29 @@ npm run test:e2e     # testes no browser (precisa do servidor a correr)
 
 ## Como funciona a animação
 
-### Introdução da câmara — 4 imagens oficiais (camada 2.5D)
+### Introdução: montagem magnética da câmara (3D real)
 
-`src/components/hero/CameraShowcase.tsx` (janelas em `SHOWCASE`, `src/animation/phases.ts`). As imagens estão em `public/images/camera/` na resolução original, sem recompressão nem deformação.
+Uma **única câmara 3D** (`src/scene/models/CinemaCamera.tsx`) com ~35 peças independentes. Cada peça usa `MagneticPart` (`src/scene/parts/MagneticPart.tsx`) e percorre, como função pura do scroll:
 
-| Progresso de cena | Imagem / transição |
+chão (pousada, altura de repouso calculada pela caixa envolvente) → vibração → levitação → constelação → atracção em curva Bézier com orientação progressiva e oscilação amortecida → inserção ao longo do eixo de encaixe → acoplamento (ex.: conjunto óptico desliza para o corpo) → micro-impacto com faísca dourada. Linhas-guia douradas ligam cada peça ao seu destino durante o voo.
+
+| Progresso de cena | Etapa (`ASSEMBLY` em `phases.ts`) |
 |---|---|
-| 0–7,5% | **Parte 1** desmontada — flutuação, aproximação, luz progressiva, partículas douradas |
-| 7,5–13,5% | 1→2: o núcleo monta-se a partir do centro (máscara radial) com flash dourado |
-| 13,5–18,5% | **Parte 2** 50% — assentamento/estabilização, brilho no sensor, aproximação |
-| 18,5–22,5% | 2→3: varrimento de luz dourada (cortina) |
-| 22,5–27,5% | **Parte 3** montada — movimento lateral, reflexo a percorrer o equipamento, destaque do logotipo e do selo 4K |
-| 27,5–31% | 3→4: rotação simulada (perspectiva + cortina, sem duplicados) |
-| 31–35,2% | **Parte 4** frontal — aproximação à lente, flare anamórfico, símbolo VIRALIZA a acender dentro da lente |
-| 35,2–39,5% | Portal: a lente abre-se e revela o mundo 3D, onde a câmara 3D (já montada) segue para o tripé |
+| 0–6% | Peças pousadas no chão (poça de luz dourada, campo magnético) |
+| 6–12,5% | Levitação para a constelação (estado "desmontado" das referências) |
+| 12–18% | Estrutura: núcleo, base, molduras metálicas, calhas |
+| 18–24% | Sensor, placa electrónica, ventoinha, cartões 256GB, módulo áudio |
+| 24–30% | Óptica: anel de encaixe, elementos ópticos e anéis a rodar, objectiva, pára-sol, acoplamento ao corpo |
+| 30–36,2% | Painéis (esquerdo, superior, VIRALIZA/4K), bateria, pega, monitor, microfone, parafusos a roscar |
+| 36,2–40% | Revelação: varrimento dourado, logotipo em destaque, rotação para a frente, reflexo óptico na lente |
 
-As imagens são 2D: a rotação lateral → frontal é **simulada** (não há geometria nas fotografias). A introdução recebe 47% do scroll através de um mapeamento contínuo e reversível (`scrollToScene`), sem alterar as janelas das fases seguintes. Em ecrãs horizontais, a cena WebGL (escondida pelas fotografias) pausa o render até à transição frontal.
+As superfícies visíveis usam **texturas recortadas das 4 imagens oficiais** (`scripts/extract-camera-textures.py` → `public/textures/camera/`): painel VIRALIZA/4K, microfone com logotipo, objectiva (AF/MF, STABILIZER), vidro da lente, placa, sensor, monitor, cartões, bateria e ventoinha. As fotografias já não são usadas como slides; continuam nas secções do site e no fallback sem WebGL (uma imagem única).
 
 ### Sequência completa
 
 | Fase | Progresso de cena | O que acontece |
 |---|---|---|
-| 1–2 — Visão / Câmara | 0–35% | Introdução com as 4 imagens oficiais (acima). A montagem 3D peça a peça continua a existir por trás e reaparece montada no portal |
+| 1–2 — Visão / Câmara | 0–40% | Montagem magnética da câmara (acima) |
 | 3 — Luz | 35–55% | A câmara viaja até ao tripé; tripés levantam-se do chão, abrem as pernas, colunas sobem; painéis LED encaixam e abrem as abas; softbox expande; cabos são passados; luzes reais acendem |
 | 4 — Estúdio | 55–85% | 14 etapas: paredes, painéis acústicos, revestimentos, fitas LED, logotipo, TV, estantes, cadeiras/sofás, mesa, microfones, acessórios, câmaras, iluminação, mesa de produção, luz final |
 | 5 — Revelação | 85–100% | Dolly-out, título, subtítulo, botões e preço |
@@ -47,7 +48,7 @@ As imagens são 2D: a rotação lateral → frontal é **simulada** (não há ge
 
 ### Limitações (transparência)
 
-- A **câmara de introdução** usa as 4 imagens oficiais; a câmara 3D procedural continua a ser usada a partir do portal (voo até ao tripé e estúdio).
+- A câmara é **3D procedural** revestida com texturas das fotografias oficiais. Para fotorrealismo total (detalhes finos, cabos, parafusos reais, materiais PBR) seria necessário um modelo GLB modelado à mão (Blender) com as mesmas peças separadas — o motor `MagneticPart` aceita-o sem alterações.
 - **Não havia modelos 3D (GLB) nos anexos** — só imagens PNG/WebP, que não têm geometria. Por isso, a câmara, as luzes e o estúdio foram **modelados proceduralmente em Three.js** (primitivas, texturas geradas em canvas com o logotipo real). A montagem é 3D real, com peças individuais, mas o nível de detalhe é de *motion design* estilizado, não fotorrealista como os renders.
 - Para aproximar ao fotorrealismo dos renders, o passo seguinte é encomendar/criar modelos GLB (Blender) com as peças separadas e com os mesmos nomes; o motor de montagem (`Assemble`) mantém-se igual — basta trocar a geometria em `src/scene/models/`.
 - O **logotipo** foi recortado do anexo `PodCast-Parte1` (sem redesenho), com fundo removido. A resolução de origem é limitada (~1160 px); recomenda-se substituir `public/brand/*.png` pelo ficheiro vectorial oficial quando disponível.

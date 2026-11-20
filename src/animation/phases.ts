@@ -5,12 +5,12 @@
  */
 
 export const PHASES = {
-  /** Fase 1 — câmara totalmente desmontada (vista explodida) */
-  exploded: { start: 0, end: 0.15 },
-  /** Fase 2 — montagem progressiva da câmara */
-  camera: { start: 0.15, end: 0.35 },
+  /** Fase 1 — câmara desmontada no chão; as peças levitam */
+  exploded: { start: 0, end: 0.12 },
+  /** Fase 2 — montagem magnética da câmara + revelação */
+  camera: { start: 0.12, end: 0.4 },
   /** Fase 3 — montagem do sistema de iluminação */
-  lights: { start: 0.35, end: 0.55 },
+  lights: { start: 0.4, end: 0.55 },
   /** Fase 4 — construção da sala de podcast */
   studio: { start: 0.55, end: 0.85 },
   /** Fase 5 — revelação do estúdio completo */
@@ -21,14 +21,14 @@ export type PhaseKey = keyof typeof PHASES;
 
 /** Sub-janelas da fase 3 (sistema de iluminação). */
 export const LIGHTS = {
-  cameraMove: [0.355, 0.47] as const,
-  standUp: [0.38, 0.44] as const,
-  legsOpen: [0.405, 0.46] as const,
-  columnRise: [0.42, 0.48] as const,
-  heads: [0.44, 0.5] as const,
-  softboxExpand: [0.45, 0.51] as const,
-  cables: [0.47, 0.525] as const,
-  powerOn: [0.5, 0.55] as const,
+  cameraMove: [0.4, 0.48] as const,
+  standUp: [0.405, 0.455] as const,
+  legsOpen: [0.425, 0.475] as const,
+  columnRise: [0.44, 0.49] as const,
+  heads: [0.455, 0.505] as const,
+  softboxExpand: [0.465, 0.515] as const,
+  cables: [0.48, 0.53] as const,
+  powerOn: [0.505, 0.55] as const,
 };
 
 /**
@@ -55,8 +55,8 @@ export const STUDIO_STEPS = {
 
 /** Textos sobrepostos por fase (in/out em progresso global). */
 export const OVERLAY_TIMING = {
-  intro: { out: [0.1, 0.145] },
-  camera: { in: [0.22, 0.26], out: [0.33, 0.365] },
+  intro: { out: [0.07, 0.11] },
+  camera: { in: [0.3, 0.34], out: [0.385, 0.415] },
   lights: { in: [0.43, 0.47], out: [0.535, 0.57] },
   studio: { in: [0.615, 0.655], out: [0.8, 0.84] },
   reveal: { in: [0.885, 0.95] },
@@ -72,39 +72,33 @@ export const CHAPTERS: Array<{ key: PhaseKey; label: string }> = [
 ];
 
 /**
- * Introdução com as 4 imagens oficiais da câmara (camada 2.5D sobre a cena 3D).
- * Janelas em progresso de cena. A câmara 3D fica escondida enquanto as fotografias
- * estão em cena e reaparece quando a lente se abre ("portal") para o mundo 3D.
+ * MONTAGEM MAGNÉTICA DA CÂMARA (progresso de cena). Cada peça tem a sua própria janela
+ * dentro destes blocos — ver src/scene/models/CinemaCamera.tsx.
  */
-export const SHOWCASE = {
-  /** Parte 1 — desmontada */
-  hold1: [0, 0.075] as const,
-  /** transição 1→2: o núcleo monta-se a partir do centro */
-  t12: [0.075, 0.135] as const,
-  /** Parte 2 — montagem a 50% */
-  hold2: [0.135, 0.185] as const,
-  /** transição 2→3: varrimento de luz dourada */
-  t23: [0.185, 0.225] as const,
-  /** Parte 3 — câmara montada (lateral) */
-  hold3: [0.225, 0.275] as const,
-  /** transição 3→4: rotação simulada para a vista frontal */
-  t34: [0.275, 0.31] as const,
-  /** Parte 4 — aproximação à lente e revelação da marca */
-  hold4: [0.31, 0.352] as const,
-  /** a lente abre-se e revela o mundo 3D */
-  portal: [0.352, 0.395] as const,
+export const ASSEMBLY = {
+  /** peças pousadas no chão (vibram no fim) */
+  rest: [0, 0.06] as const,
+  /** levitação magnética até à constelação */
+  lift: [0.06, 0.125] as const,
+  /** estrutura metálica interna */
+  structure: [0.12, 0.18] as const,
+  /** sensor e electrónica */
+  electronics: [0.18, 0.24] as const,
+  /** conjunto óptico */
+  lens: [0.24, 0.3] as const,
+  /** painéis exteriores e acessórios */
+  body: [0.3, 0.362] as const,
+  /** revelação cinematográfica */
+  reveal: [0.362, 0.4] as const,
 };
 
-/** A câmara 3D só aparece a partir daqui (já montada, a caminho do tripé). */
-export const CAMERA_3D_FROM = SHOWCASE.portal[0];
-
 /**
- * Mapeamento scroll → cena. A introdução fotográfica (cena 0 → 0.40) recebe 47% do
+ * Mapeamento scroll → cena. A montagem da câmara (cena 0 → 0.40) recebe 50% do
  * scroll; o resto da narrativa mantém todas as janelas originais. Linear por troços,
  * contínuo e monótono, portanto reversível.
  */
 const INTRO_SCENE = 0.4;
-const INTRO_SCROLL = 0.47;
+const INTRO_SCROLL = 0.5;
 
 export function scrollToScene(t: number) {
   const c = t < 0 ? 0 : t > 1 ? 1 : t;

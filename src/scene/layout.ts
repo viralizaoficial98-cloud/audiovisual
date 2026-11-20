@@ -20,7 +20,8 @@ export const SET: Vec3 = [2, 0, -2.4];
 export const SET_FOCUS: Vec3 = [2, 1.05, -2.35];
 
 /** Onde a câmara principal é montada (fases 1–2). */
-export const HERO_ASSEMBLY: Vec3 = [2.3, 1.5, 2.4];
+/** (a câmara monta-se a flutuar ~42 cm acima do chão; as peças começam pousadas no chão) */
+export const HERO_ASSEMBLY: Vec3 = [2.3, 0.42, 2.4];
 /** Escala da câmara principal (ligeiramente heroica face ao real). */
 export const HERO_SCALE = 1.25;
 /** Posição final da câmara principal: no tripé, à direita, a filmar o set. */

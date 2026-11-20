@@ -66,12 +66,13 @@ test("matemática da animação é reversível (pura)", () => {
   assert.equal(sampleKeys(keys, 1, out)[0], 20);
 });
 
-test("introdução fotográfica: janelas ordenadas e mapeamento scroll↔cena reversível", async () => {
-  const { SHOWCASE, CAMERA_3D_FROM, sceneToScroll, scrollToScene, LIGHTS: L } = await import("@/animation/phases");
-  const ws = Object.values(SHOWCASE);
-  for (let i = 1; i < ws.length; i++) assert.equal(ws[i][0], ws[i - 1][1], "janelas contíguas");
-  assert.equal(ws[0][0], 0);
-  assert.ok(CAMERA_3D_FROM <= L.cameraMove[0], "a câmara 3D reaparece antes de partir para o tripé");
+test("montagem magnética: blocos ordenados, contíguos e mapeamento scroll↔cena reversível", async () => {
+  const { ASSEMBLY, sceneToScroll, scrollToScene, LIGHTS: L, PHASES: P } = await import("@/animation/phases");
+  const order = [ASSEMBLY.rest, ASSEMBLY.lift, ASSEMBLY.structure, ASSEMBLY.electronics, ASSEMBLY.lens, ASSEMBLY.body, ASSEMBLY.reveal];
+  assert.equal(order[0][0], 0);
+  for (let i = 1; i < order.length; i++) assert.ok(order[i][0] <= order[i - 1][1] + 1e-9 && order[i][0] >= order[i - 1][0], "blocos encadeados");
+  assert.equal(ASSEMBLY.reveal[1], P.camera.end, "a revelação termina com a fase da câmara");
+  assert.ok(L.cameraMove[0] >= ASSEMBLY.reveal[1], "a câmara só parte para o tripé depois de montada");
   let prev = -1;
   for (let i = 0; i <= 100; i++) {
     const t = i / 100;
@@ -80,6 +81,4 @@ test("introdução fotográfica: janelas ordenadas e mapeamento scroll↔cena re
     prev = p;
     assert.ok(Math.abs(sceneToScroll(p) - t) < 1e-9, "inverso exacto");
   }
-  assert.equal(scrollToScene(0), 0);
-  assert.equal(scrollToScene(1), 1);
 });

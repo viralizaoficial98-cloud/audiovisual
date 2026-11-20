@@ -52,7 +52,8 @@ for (const vp of [
     assert.equal(await page.evaluate(() => window.scrollY), 0);
     assert.equal(await progress(page), 0);
     assert.ok(await page.locator("canvas:not([data-dust])").isVisible());
-    assert.ok(await page.locator('img[src*="parte1-desmontada"]').isVisible(), "imagem oficial Parte 1 visível");
+    // a câmara é montada em 3D: nenhuma fotografia da câmara (slide) no banner
+    assert.equal(await page.locator('#inicio img[src*="/images/camera/"]').count(), 0, "sem slides de fotografias da câmara");
     assert.ok(await page.getByText("COMEÇA COM UMA VISÃO.").isVisible());
   });
 
@@ -179,7 +180,7 @@ await step("[sem WebGL] usa sequência de imagens e mantém a navegação", asyn
   const page = await b.newPage({ viewport: { width: 1280, height: 800 } });
   await page.goto(URL, { waitUntil: "networkidle" });
   assert.equal(await page.locator("canvas:not([data-dust])").count(), 0);
-  assert.ok(await page.locator('img[src*="parte1-desmontada"]').isVisible());
+  assert.ok(await page.locator('#inicio img[src*="parte3-montada"]').first().isVisible(), "fallback mostra a câmara oficial (imagem única)");
   await page.getByRole("button", { name: "Saltar introdução" }).click();
   await page.waitForFunction(() => window.__viralizaHero.progress > 0.99, null, { timeout: 10000 });
   await b.close();
