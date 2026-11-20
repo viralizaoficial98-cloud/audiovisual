@@ -8,13 +8,23 @@ import { IconWhatsApp } from "@/components/ui/Icons";
 export function WhatsAppFab() {
   const [show, setShow] = useState(false);
   useEffect(() => {
-    const on = () => {
+    // limite medido só no início e em resize (não em cada evento de scroll)
+    let limit = Infinity;
+    const measure = () => {
       const hero = document.getElementById("inicio");
-      setShow(!!hero && window.scrollY > hero.offsetTop + hero.offsetHeight - window.innerHeight * 0.5);
+      limit = hero ? hero.offsetTop + hero.offsetHeight - window.innerHeight * 0.5 : Infinity;
+      on();
     };
-    on();
+    const on = () => setShow(window.scrollY > limit);
+    measure();
     window.addEventListener("scroll", on, { passive: true });
-    return () => window.removeEventListener("scroll", on);
+    // volta a medir quando o layout muda (resize, modo estático do banner, imagens…)
+    const ro = new ResizeObserver(measure);
+    ro.observe(document.documentElement);
+    return () => {
+      window.removeEventListener("scroll", on);
+      ro.disconnect();
+    };
   }, []);
   return (
     <a

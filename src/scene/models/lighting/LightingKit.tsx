@@ -3,6 +3,7 @@
 import { useMemo, useRef, type ReactNode } from "react";
 import * as THREE from "three";
 import type { Vec3 } from "@/animation/math";
+import { heroState } from "@/animation/heroState";
 import { useAnim } from "../../parts/driver";
 import { MagneticField, MagneticPart, type MagneticSpec } from "../../parts/MagneticPart";
 import { Cable, FluidHead } from "../rigs";
@@ -86,7 +87,9 @@ export function LightingKit() {
 
   // o kit só existe a partir da fase LUZ (a fase da câmara fica exactamente como estava)
   useAnim((p) => {
-    if (root.current) root.current.visible = p >= 0.3995;
+    // só aparece depois de preparado na GPU (se o visitante chegar antes, o scroll continua e
+    // o kit surge já no estado do progresso actual — sem compilar nada a meio do scroll)
+    if (root.current) root.current.visible = p >= 0.3995 && heroState.prepared >= 1;
   });
 
   const L = useMemo(() => {

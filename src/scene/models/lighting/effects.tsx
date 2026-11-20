@@ -10,7 +10,7 @@ import { useAnim, useTier } from "../../parts/driver";
 import { BeamCone } from "../rigs";
 import { SET_FOCUS } from "../../layout";
 import { Backdrop } from "./equipment";
-import { BACKDROP, KIT_FOCUS, REAIM, w } from "./kitLayout";
+import { BACKDROP, KIT_FOCUS, LED_L, LED_PANEL_DY, LED_R, REAIM, SOFTBOX_POSE, ledHeadPos, w } from "./kitLayout";
 
 /** Janelas do acendimento sequencial (fase 5): LED esq., LED dir., ring light, softbox. */
 export const POWER = {
@@ -53,18 +53,33 @@ export function useKitMaterials() {
 
 export type KitMaterials = ReturnType<typeof useKitMaterials>;
 
-export function KitEffects({ m, ledL, ledR, softbox, ring }: { m: KitMaterials; ledL: Vec3; ledR: Vec3; softbox: Vec3; ring: Vec3 }) {
+/**
+ * Luzes REAIS do kit (focos, luz de trabalho, ambiente, reflexo dourado). São montadas desde o
+ * 1.º frame, fora do grupo do kit, e ficam sempre "visíveis" com intensidade 0 até à fase LUZ:
+ * o número de luzes da cena nunca muda. No three.js o número de luzes faz parte de cada shader;
+ * se mudasse ao entrar nas fases LUZ/ESTÚDIO, todos os materiais seriam recompilados nesse
+ * frame (era a causa dos congelamentos na 1.ª visita). As fórmulas de intensidade são as mesmas.
+ */
+export function KitLights() {
   const tier = useTier();
   const size = useThree((s) => s.size);
   const work = useRef<THREE.SpotLight>(null);
   const sweep = useRef<THREE.PointLight>(null);
-  const wave = useRef<THREE.Group>(null);
-  const backdrop = useRef<THREE.Group>(null);
   const spotL = useRef<THREE.SpotLight>(null);
   const spotR = useRef<THREE.SpotLight>(null);
   const spotS = useRef<THREE.SpotLight>(null);
   const fill = useRef<THREE.AmbientLight>(null);
   const hemi = useRef<THREE.HemisphereLight>(null);
+
+  const pos = useMemo(() => {
+    const hL = ledHeadPos(LED_L);
+    const hR = ledHeadPos(LED_R);
+    return {
+      ledL: [hL[0], hL[1] + LED_PANEL_DY, hL[2]] as Vec3,
+      ledR: [hR[0], hR[1] + LED_PANEL_DY, hR[2]] as Vec3,
+      softbox: SOFTBOX_POSE.pos as Vec3,
+    };
+  }, []);
 
   const targets = useMemo(() => {
     const focus = new THREE.Object3D();
@@ -74,11 +89,6 @@ export function KitEffects({ m, ledL, ledR, softbox, ring }: { m: KitMaterials; 
     return { focus, kit };
   }, []);
 
-  const waveMat = useMemo(
-    () => new THREE.MeshBasicMaterial({ color: "#ffb400", transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }),
-    [],
-  );
-
   useAnim((p) => {
     const active = p > 0.398 && p < 0.62;
     // os focos acompanham a rotação das cabeças: centro do kit → set de podcast
@@ -86,7 +96,10 @@ export function KitEffects({ m, ledL, ledR, softbox, ring }: { m: KitMaterials; 
     targets.focus.position.set(lerp(KIT_FOCUS[0], SET_FOCUS[0], re), lerp(KIT_FOCUS[1], SET_FOCUS[1], re), lerp(KIT_FOCUS[2], SET_FOCUS[2], re));
     // luz de trabalho por cima do kit (desce quando os equipamentos acendem)
     const kitOut = 1 - range(p, 0.55, 0.6);
-    if (work.current) work.current.intensity = active ? on(p, w(0, 0.08)) * lerp(60, 28, on(p, w(0.75, 0.9))) * kitOut * (size.width / Math.max(1, size.height) < 1 ? 0.5 : 1) : 0;
+    if (work.current)
+      work.current.intensity = active
+        ? on(p, w(0, 0.08)) * lerp(60, 28, on(p, w(0.75, 0.9))) * kitOut * (size.width / Math.max(1, size.height) < 1 ? 0.5 : 1)
+        : 0;
     // luz ambiente da fase LUZ para o kit se ler bem (o estúdio tem a sua própria luz depois)
     const amb = active ? on(p, w(0, 0.08)) * kitOut : 0;
     if (fill.current) fill.current.intensity = amb * 0.35;
@@ -106,24 +119,10 @@ export function KitEffects({ m, ledL, ledR, softbox, ring }: { m: KitMaterials; 
         sweep.current.distance = 1.8;
       }
     }
-    // F2 — onda de energia magnética no chão
-    const u = range(p, ...w(0.15, 0.32));
-    waveMat.opacity = Math.sin(Math.PI * u) * 0.55;
-    if (wave.current) {
-      wave.current.visible = u > 0 && u < 1;
-      const s = lerp(0.15, 4.2, ease.outCubic(u));
-      wave.current.scale.set(s, 1, s);
-    }
-    // F5 — acendimento sequencial (emissivos + luzes reais)
-    const b = 1 + 0.25 * fin(p);
+    // F5 — focos reais acendem com os equipamentos
     const L = on(p, POWER.ledL);
     const R = on(p, POWER.ledR);
-    const G = on(p, POWER.ring);
     const S = on(p, POWER.softbox);
-    m.ledL.emissiveIntensity = L * 2.6 * b;
-    m.ledR.emissiveIntensity = R * 2.6 * b;
-    m.ring.emissiveIntensity = G * 3 * b;
-    m.diffuser.emissiveIntensity = S * 2.2 * b;
     // durante a montagem do estúdio os focos baixam (não iluminam o chão à frente) e voltam
     // à intensidade total quando são reorientados para o set (só actua depois de 0.55)
     // ecrãs verticais (telemóvel) vêem mais chão: focos mais suaves para não criar poças de luz
@@ -131,21 +130,19 @@ export function KitEffects({ m, ledL, ledR, softbox, ring }: { m: KitMaterials; 
     const dim = portrait * (1 - 0.7 * range(p, 0.55, 0.58) * (1 - range(p, REAIM[0], REAIM[1])));
     if (spotL.current) spotL.current.intensity = L * 15 * (1 + 0.2 * fin(p)) * dim;
     if (spotR.current) spotR.current.intensity = R * 15 * (1 + 0.2 * fin(p)) * dim;
-    if (spotS.current) spotS.current.intensity = S * 20 * (1 + 0.2 * fin(p)) * dim;
-    // parede de fundo: sobe do chão, a moldura LED acende; recolhe quando o estúdio começa
-    const rise = on(p, POWER.backdropRise) * (1 - ease.inOutCubic(range(p, STUDIO_STEPS.structure[0], STUDIO_STEPS.structure[0] + 0.025)));
-    if (backdrop.current) {
-      backdrop.current.position.y = -2.8 * (1 - rise);
-      backdrop.current.visible = rise > 0.001;
+    if (spotS.current) {
+      spotS.current.intensity = S * 20 * (1 + 0.2 * fin(p)) * dim;
+      // sombra só é recalculada quando o foco está aceso (poupa um passe de sombra até lá)
+      spotS.current.shadow.autoUpdate = spotS.current.intensity > 0;
     }
-    m.backdropFrame.emissiveIntensity = on(p, POWER.backdropGlow) * 2.4;
-    m.backdropLogo.emissiveIntensity = 0.05 + on(p, POWER.backdropGlow) * 0.9;
+    // antes da fase LUZ o kit não existia na imagem (grupo escondido): luzes exactamente a 0
+    if (p < 0.3995) for (const l of [work, fill, hemi, sweep, spotL, spotR, spotS]) if (l.current) l.current.intensity = 0;
   });
 
-  const spot = (ref: RefObject<THREE.SpotLight | null>, pos: Vec3, angle: number, shadow = false) => (
+  const spot = (ref: RefObject<THREE.SpotLight | null>, at: Vec3, angle: number, shadow = false) => (
     <spotLight
       ref={ref}
-      position={pos}
+      position={at}
       target={targets.focus}
       angle={angle}
       penumbra={0.85}
@@ -161,13 +158,72 @@ export function KitEffects({ m, ledL, ledR, softbox, ring }: { m: KitMaterials; 
   );
 
   return (
-    <group>
+    <group name="luzes-kit">
       <primitive object={targets.focus} />
       <primitive object={targets.kit} />
       <spotLight ref={work} position={[2.1, 4.8, 2.2]} target={targets.kit} angle={0.9} penumbra={1} decay={1.2} distance={12} intensity={0} color="#ffe8c4" />
       <ambientLight ref={fill} intensity={0} color="#fff0d8" />
       <hemisphereLight ref={hemi} args={["#ffe2a8", "#20160a", 0]} />
       <pointLight ref={sweep} color="#ffc84a" distance={1.8} decay={2} intensity={0} />
+      {spot(spotL, pos.ledL, 0.62)}
+      {spot(spotR, pos.ledR, 0.62)}
+      {spot(spotS, pos.softbox, 0.75, tier === "high")}
+    </group>
+  );
+}
+
+/** Efeitos visuais do kit (onda magnética, cones de luz, parede de fundo e emissivos).
+ *  As luzes reais estão em KitLights (montadas desde o início). */
+export function KitEffects({ m, ledL, ledR }: { m: KitMaterials; ledL: Vec3; ledR: Vec3; softbox: Vec3; ring: Vec3 }) {
+  const tier = useTier();
+  const wave = useRef<THREE.Group>(null);
+  const backdrop = useRef<THREE.Group>(null);
+
+  const waveMat = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: "#ffb400",
+        transparent: true,
+        opacity: 0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+        toneMapped: false,
+      }),
+    [],
+  );
+
+  useAnim((p) => {
+    // F2 — onda de energia magnética no chão
+    const u = range(p, ...w(0.15, 0.32));
+    waveMat.opacity = Math.sin(Math.PI * u) * 0.55;
+    if (wave.current) {
+      wave.current.visible = u > 0 && u < 1;
+      const s = lerp(0.15, 4.2, ease.outCubic(u));
+      wave.current.scale.set(s, 1, s);
+    }
+    // F5 — acendimento sequencial (emissivos; as luzes reais estão em KitLights)
+    const b = 1 + 0.25 * fin(p);
+    const L = on(p, POWER.ledL);
+    const R = on(p, POWER.ledR);
+    const G = on(p, POWER.ring);
+    const S = on(p, POWER.softbox);
+    m.ledL.emissiveIntensity = L * 2.6 * b;
+    m.ledR.emissiveIntensity = R * 2.6 * b;
+    m.ring.emissiveIntensity = G * 3 * b;
+    m.diffuser.emissiveIntensity = S * 2.2 * b;
+    // parede de fundo: sobe do chão, a moldura LED acende; recolhe quando o estúdio começa
+    const rise = on(p, POWER.backdropRise) * (1 - ease.inOutCubic(range(p, STUDIO_STEPS.structure[0], STUDIO_STEPS.structure[0] + 0.025)));
+    if (backdrop.current) {
+      backdrop.current.position.y = -2.8 * (1 - rise);
+      backdrop.current.visible = rise > 0.001;
+    }
+    m.backdropFrame.emissiveIntensity = on(p, POWER.backdropGlow) * 2.4;
+    m.backdropLogo.emissiveIntensity = 0.05 + on(p, POWER.backdropGlow) * 0.9;
+  });
+
+  return (
+    <group>
       <group ref={wave} position={[2.1, 0.006, -0.25]} visible={false}>
         {[0.8, 1].map((r) => (
           <mesh key={r} rotation={[-Math.PI / 2, 0, 0]} material={waveMat}>
@@ -175,9 +231,6 @@ export function KitEffects({ m, ledL, ledR, softbox, ring }: { m: KitMaterials; 
           </mesh>
         ))}
       </group>
-      {spot(spotL, ledL, 0.62)}
-      {spot(spotR, ledR, 0.62)}
-      {spot(spotS, softbox, 0.75, tier === "high")}
       {tier !== "low" && (
         <>
           <BeamCone from={ledL} to={toward(ledL, KIT_FOCUS, 0.5)} radius={0.38} intensity={(p) => on(p, POWER.ledL) * 0.045 * (1 - range(p, 0.55, 0.57))} />

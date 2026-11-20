@@ -27,7 +27,8 @@ import { CameraRig } from "./CameraRig";
 import { Atmosphere, Floor, SceneLighting } from "./Environment";
 import { CinemaCamera } from "./models/CinemaCamera";
 import { LightingKit } from "./models/lighting/LightingKit";
-import { PodcastStudio } from "./models/studio/PodcastStudio";
+import { KitLights } from "./models/lighting/effects";
+import { PodcastStudio, StudioLights } from "./models/studio/PodcastStudio";
 
 type Props = {
   tier: QualityTier;
@@ -52,13 +53,6 @@ const DPR: Record<QualityTier, [number, number]> = {
  * se o utilizador se aproximar da respectiva fase.
  */
 const STAGE_NEEDED_AT = [0, 0.22, 0.42] as const;
-/** Estados (progresso) a "aquecer" quando cada estágio fica montado: cada fase acende
- *  luzes diferentes, e o número de luzes faz parte de cada shader — sem isto, os shaders
- *  seriam compilados a meio do scroll (congelamentos ao entrar nas luzes e no estúdio). */
-const WARM_AT: Record<1 | 2, number[]> = {
-  1: [0.42, 0.5],
-  2: [0.56, 0.62, 0.75, 0.9, 1],
-};
 
 /**
  * Raiz WebGL do banner. Toda a cena é procedural (geometria real em Three.js):
@@ -89,6 +83,10 @@ export default function HeroScene({ tier, active, onReady }: Props) {
           <SceneAssetsProvider>
             <CameraRig parallax={tier !== "low"} />
             <StableLighting />
+            {/* todas as luzes das 3 fases existem desde o início (intensidade 0 até à sua fase):
+              o número de luzes é constante → nenhum shader é recompilado ao mudar de fase */}
+            <KitLights />
+            <StudioLights />
             <Floor />
             <Atmosphere />
             <CinemaCamera />
@@ -186,38 +184,54 @@ function Mounted({
   return null;
 }
 
-const idle = (timeout = 400) =>
-  new Promise<void>((resolve) => {
-    if ("requestIdleCallback" in window)
-      window.requestIdleCallback(() => resolve(), { timeout });
-    else setTimeout(resolve, 60);
-  });
-const nextFrame = () =>
-  new Promise<void>((r) => requestAnimationFrame(() => r()));
-/** Espera que o scroll acalme (sem mudanças de progresso durante ~150 ms), no máximo `max` ms:
- *  o trabalho de preparação evita competir com um gesto em curso. */
-const calm = (max = 1200) =>
-  new Promise<void>((resolve) => {
-    const t0 = performance.now();
-    let last = heroState.progress;
-    let still = performance.now();
-    const tick = () => {
-      const now = performance.now();
-      if (heroState.progress !== last) {
-        last = heroState.progress;
-        still = now;
-      }
-      if (now - still > 150 || now - t0 > max) resolve();
-      else setTimeout(tick, 50);
-    };
-    tick();
-  });
+type Renderable = THREE.Mesh | THREE.Points | THREE.Line | THREE.Sprite;
+const isRenderable = (o: THREE.Object3D): o is Renderable =>
+  (o as THREE.Mesh).isMesh === true ||
+  (o as THREE.Points).isPoints === true ||
+  (o as THREE.Line).isLine === true ||
+  (o as THREE.Sprite).isSprite === true;
+const materialsOf = (o: Renderable) =>
+  (Array.isArray(o.material) ? o.material : [o.material]).filter(
+    Boolean,
+  ) as THREE.Material[];
+const texturesOf = (m: THREE.Material) =>
+  Object.values(m).filter(
+    (v): v is THREE.Texture =>
+      !!v &&
+      (v as THREE.Texture).isTexture === true &&
+      !(v as THREE.Texture).isRenderTargetTexture,
+  );
+/** Estágio de uma peça: kit (1), estúdio (2) ou o resto (0 — câmara, ambiente, luzes). */
+const stageOf = (o: THREE.Object3D) => {
+  for (let a: THREE.Object3D | null = o; a; a = a.parent) {
+    if (a.name === "kit-iluminacao") return 1;
+    if (a.name === "estudio") return 2;
+  }
+  return 0;
+};
+
+type Item =
+  | { kind: "compile"; obj: Renderable }
+  | { kind: "link"; mat: THREE.Material; polls: number }
+  | { kind: "texture"; tex: THREE.Texture }
+  | { kind: "draw"; objs: Renderable[]; polls: number };
 
 /**
- * Orquestra o carregamento progressivo e o "aquecimento" da GPU:
- *  - estágio 0: prepara só os shaders do estado actual e avisa quando o 1.º frame foi desenhado;
- *  - estágios seguintes: em tempo ocioso, prepara shaders, texturas e geometria de cada fase
- *    (no estado de luzes dessa fase) antes de o utilizador lá chegar.
+ * Preparação progressiva da GPU, EM FATIAS PEQUENAS dentro do ciclo de render.
+ *
+ * Diagnóstico (1.ª visita, perfis de CPU): os congelamentos vinham do primeiro uso de cada
+ * shader (compilação + ligação síncronas, "onFirstUse") e de tarefas de preparação grandes
+ * (compilar/desenhar uma fase inteira de uma vez). Aqui cada tarefa é UMA coisa — compilar um
+ * material, concluir a ligação de um programa, enviar uma textura, ou um desenho de aquecimento
+ * de ~24 malhas — e cada frame tem um orçamento de tempo (4–12 ms). A main thread nunca fica
+ * presa: o scroll e a animação continuam a responder durante toda a preparação.
+ *
+ * Com KHR_parallel_shader_compile (Chrome/Edge/Android) a compilação corre fora da main thread
+ * e a ligação só é concluída quando o driver diz que está pronta (sem esperas). Sem a extensão,
+ * cada programa custa o seu tempo de compilação, mas no máximo um por frame.
+ *
+ * Uma fase só fica visível depois de preparada; se o visitante lá chegar antes, o scroll segue
+ * normalmente e a fase aparece já no estado do progresso actual (sem recompilar nada).
  */
 function Preparer({
   mounted,
@@ -234,9 +248,39 @@ function Preparer({
   const scene = useThree((s) => s.scene);
   const camera = useThree((s) => s.camera);
   const invalidate = useThree((s) => s.invalidate);
-  const driver = useDriver();
-  const done = useRef(new Set<number>());
-  const target = useRef<THREE.WebGLRenderTarget | null>(null);
+  const st = useRef({
+    known: new WeakSet<THREE.Object3D>(),
+    keys: new Set<string>(),
+    texSeen: new WeakSet<THREE.Texture>(),
+    queues: [[], [], []] as Item[][],
+    scanned: -1,
+    done: -1,
+    readyAt: 0,
+    lastP: -1,
+    lastMove: 0,
+    rt: null as THREE.WebGLRenderTarget | null,
+    parallel: false,
+    nextRequest: 0,
+    /** programas criados cuja ligação ainda não foi concluída (trabalho pendente na GPU) */
+    pending: new Set<{ isReady: () => boolean; getUniforms: () => unknown }>(),
+    newThisTick: 0,
+    compiled: new WeakSet<THREE.Material>(),
+    linked: new WeakSet<THREE.Material>(),
+  });
+
+  // diagnóstico (?perf): estado da fila de preparação
+  useEffect(() => {
+    if (window.location.search.includes("perf"))
+      (window as unknown as { __viralizaPrep?: unknown }).__viralizaPrep =
+        st.current;
+  }, []);
+
+  useEffect(() => {
+    st.current.parallel =
+      gl.getContext().getExtension("KHR_parallel_shader_compile") !== null;
+    const s = st.current;
+    return () => s.rt?.dispose();
+  }, [gl]);
 
   // se o utilizador avançar depressa, monta já o que vai ser preciso
   useEffect(
@@ -248,114 +292,283 @@ function Preparer({
     [requestStage],
   );
 
-  useEffect(() => () => target.current?.dispose(), []);
-
-  useEffect(() => {
-    if (mounted < 0 || !driver) return;
-    let cancelled = false;
-
-    /** Coloca a cena no estado de p (síncrono), executa fn e repõe o estado do scroll actual. */
-    const at = <T,>(p: number, fn: () => T): T => {
-      driver.applyAt(p);
-      try {
-        return fn();
-      } finally {
-        driver.applyAt(heroState.progress);
+  /** Procura peças novas na cena e põe na fila o que cada uma precisa. */
+  const scan = useCallback(() => {
+    const s = st.current;
+    const fresh: Renderable[][] = [[], [], []];
+    scene.traverse((o) => {
+      if (!isRenderable(o) || s.known.has(o)) return;
+      s.known.add(o);
+      const stage = stageOf(o);
+      fresh[stage].push(o);
+      for (const m of materialsOf(o)) {
+        const attrs = (o as THREE.Mesh).geometry?.attributes ?? {};
+        const geo = `${attrs.uv1 ? "u1" : ""}${attrs.uv2 ? "u2" : ""}${attrs.tangent ? "t" : ""}${attrs.color?.itemSize ?? ""}`;
+        const key = `${m.uuid}|${(o as THREE.InstancedMesh).isInstancedMesh ? "i" : ""}${o.type}|${geo}`;
+        if (!s.keys.has(key)) {
+          s.keys.add(key);
+          s.queues[stage].push(
+            { kind: "compile", obj: o },
+            { kind: "link", mat: m, polls: 0 },
+          );
+        }
+        for (const t of texturesOf(m)) {
+          if (s.texSeen.has(t)) continue;
+          s.texSeen.add(t);
+          s.queues[stage].push({ kind: "texture", tex: t });
+        }
       }
-    };
-    // As variantes de shader dependem do destino do desenho: com pós-processamento a cena é
-    // desenhada num render target (cor linear, sem tone mapping); sem ele, directamente no ecrã
-    // (sRGB + ACES). A preparação usa SEMPRE o mesmo destino que o render real.
-    const rt = () => (target.current ??= new THREE.WebGLRenderTarget(4, 4));
-    const withTarget = <T,>(fn: () => T): T => {
+    });
+    fresh.forEach((list, stage) => {
+      for (let i = 0; i < list.length; i += 24)
+        s.queues[stage].push({
+          kind: "draw",
+          objs: list.slice(i, i + 24),
+          polls: 0,
+        });
+    });
+  }, [scene]);
+
+  // cada estágio montado → regista as suas peças
+  useEffect(() => {
+    if (mounted > st.current.scanned) {
+      st.current.scanned = mounted;
+      scan();
+      invalidate();
+    }
+  }, [mounted, scan, invalidate]);
+
+  /** Destino igual ao do render real: render target com pós-processamento; ecrã sem ele. */
+  const withTarget = useCallback(
+    <T,>(fn: () => T): T => {
+      const s = st.current;
       const prev = gl.getRenderTarget();
-      gl.setRenderTarget(post ? rt() : null);
+      gl.setRenderTarget(
+        post ? (s.rt ??= new THREE.WebGLRenderTarget(4, 4)) : null,
+      );
       try {
         return fn();
       } finally {
         gl.setRenderTarget(prev);
       }
-    };
-    const compile = (p: number) =>
-      at(p, () =>
-        withTarget(() => gl.compileAsync(scene, camera)).catch(() => undefined),
-      );
-    /** Desenho de aquecimento (sem culling): envia geometria e texturas para a GPU e inicializa
-     *  os uniforms — o custo do "primeiro frame" de cada fase sai do scroll. Com pós-processamento
-     *  vai para um render target de 4×4 px; sem ele vai para o ecrã e é logo substituído pelo
-     *  frame real (mesma tarefa: o navegador só apresenta o último). */
-    const upload = (p: number) => {
-      const culled: THREE.Object3D[] = [];
+    },
+    [gl, post],
+  );
+
+  const programsOf = useCallback(
+    (m: THREE.Material) => {
+      const progs = (
+        gl.properties.get(m) as {
+          programs?: Map<
+            string,
+            { isReady: () => boolean; getUniforms: () => unknown }
+          >;
+        }
+      ).programs;
+      return progs ? [...progs.values()] : [];
+    },
+    [gl],
+  );
+
+  /** Desenho de aquecimento de um lote de malhas (envia geometria e uniforms; 1.º uso do
+   *  programa). Só o lote fica visível; vai para um render target de 4×4 px ou, sem
+   *  pós-processamento, para 1 pixel do ecrã (scissor) — o frame real que se segue, na mesma
+   *  tarefa, redesenha o ecrã inteiro. */
+  const warmDraw = useCallback(
+    (objs: Renderable[]) => {
+      const s = st.current;
+      const batch = new Set<THREE.Object3D>(objs);
+      const saved: [THREE.Object3D, boolean, boolean][] = [];
       scene.traverse((o) => {
-        if (o.frustumCulled) {
-          o.frustumCulled = false;
-          culled.push(o);
-        }
+        if (!isRenderable(o)) return;
+        saved.push([o, o.visible, o.frustumCulled]);
+        const inBatch = batch.has(o);
+        o.visible = inBatch;
+        if (inBatch) o.frustumCulled = false;
       });
+      const anc: THREE.Object3D[] = [];
+      for (const o of objs)
+        for (let a = o.parent; a; a = a.parent)
+          if (!a.visible) ((a.visible = true), anc.push(a));
+      const prev = gl.getRenderTarget();
+      const scissor = new THREE.Vector4();
+      const scissorTest = gl.getScissorTest();
       try {
-        at(p, () => withTarget(() => gl.render(scene, camera)));
+        if (post)
+          gl.setRenderTarget((s.rt ??= new THREE.WebGLRenderTarget(4, 4)));
+        else {
+          gl.getScissor(scissor);
+          gl.setScissorTest(true);
+          gl.setScissor(0, 0, 1, 1);
+          gl.setRenderTarget(null);
+        }
+        gl.render(scene, camera);
       } finally {
-        culled.forEach((o) => (o.frustumCulled = true));
+        if (!post) {
+          gl.setScissor(scissor);
+          gl.setScissorTest(scissorTest);
+        }
+        gl.setRenderTarget(prev);
+        for (const [o, v, f] of saved) ((o.visible = v), (o.frustumCulled = f));
+        for (const a of anc) a.visible = false;
       }
-      if (!post) gl.render(scene, camera); // repõe já o frame do estado actual
-    };
+    },
+    [gl, scene, camera, post],
+  );
 
-    /** Prepara um estágio. Devolve false se foi interrompido (é retomado no efeito seguinte). */
-    const prepare = async (st: number) => {
-      if (st === 0) {
-        // 1.º ecrã: só os shaders do estado actual (fase da câmara)
-        await compile(heroState.progress);
-        if (cancelled) return false;
-        invalidate();
-        await nextFrame();
-        await nextFrame();
-        if (cancelled) return false;
-        onReady?.();
-        return true;
+  // Enquanto o estágio 0 não está pronto, o canvas está tapado pela imagem inicial: o render
+  // real não desenha nada (câmara sem camadas visíveis) — poupa main thread e GPU para a
+  // preparação e para o scroll. A compilação e os desenhos de aquecimento usam a camada normal.
+  useEffect(() => {
+    if (st.current.done < 0) camera.layers.disableAll();
+    return () => camera.layers.set(0);
+  }, [camera]);
+  const withCameraLayer = useCallback(
+    <T,>(fn: () => T): T => {
+      const mask = camera.layers.mask;
+      camera.layers.set(0);
+      try {
+        return fn();
+      } finally {
+        camera.layers.mask = mask;
       }
-      for (const p of WARM_AT[st as 1 | 2]) {
-        await calm();
-        await idle();
-        if (cancelled) return false;
-        await compile(p);
-        await calm();
-        await idle();
-        if (cancelled) return false;
-        upload(p);
-      }
-      invalidate();
-      return true;
-    };
+    },
+    [camera],
+  );
 
-    // fila: prepara, por ordem, todos os estágios já montados que ainda não foram preparados
-    // (se o kit e o estúdio montarem juntos — salto directo para o fim — nenhum fica de fora)
-    const run = async () => {
-      for (let st = 0; st <= mounted; st++) {
-        if (done.current.has(st)) continue;
-        if (!(await prepare(st))) return;
-        done.current.add(st);
-        heroState.prepared = Math.max(heroState.prepared, st);
-        if (st < 2 && st === mounted) {
-          await idle(300);
-          if (!cancelled) requestStage(st + 1);
+  /** Executa um item. Devolve false se tem de esperar (volta para o fim da fila). */
+  const run = useCallback(
+    (it: Item): boolean => {
+      const s = st.current;
+      switch (it.kind) {
+        case "compile": {
+          // o trabalho de compilação acontece no processo da GPU: sem compilação paralela, no
+          // máximo 1 programa NOVO por passo (senão a GPU fica ocupada e o navegador não
+          // produz frames); com ela, no máximo 3 programas em curso de cada vez. Materiais
+          // diferentes com o mesmo programa (ex.: as faíscas de cada peça) reutilizam o
+          // programa em cache e não contam.
+          if (s.parallel ? s.pending.size >= 3 : s.newThisTick >= 1)
+            return false;
+          // (marcado como compilado mesmo que a compilação seja saltada: a fila nunca encrava)
+          for (const m of materialsOf(it.obj)) s.compiled.add(m);
+          const before = gl.info.programs?.length ?? 0;
+          let hasLight = false;
+          it.obj.traverse((o) =>
+            (o as THREE.Light).isLight ? (hasLight = true) : null,
+          );
+          // compila os materiais desta malha com as luzes (constantes) da cena
+          if (!hasLight)
+            withCameraLayer(() =>
+              withTarget(() => gl.compile(it.obj, camera, scene)),
+            );
+          const created = (gl.info.programs ?? []).slice(before) as unknown as {
+            isReady: () => boolean;
+            getUniforms: () => unknown;
+          }[];
+          s.newThisTick += created.length;
+          for (const pr of created) s.pending.add(pr);
+          return true;
+        }
+        case "link": {
+          if (!s.compiled.has(it.mat)) return false; // ainda não foi compilado
+          if (s.linked.has(it.mat)) return true;
+          const progs = programsOf(it.mat);
+          // com compilação paralela: só conclui quando o driver tem o programa pronto
+          if (s.parallel && it.polls < 120 && progs.some((p) => !p.isReady())) {
+            it.polls++;
+            return false;
+          }
+          progs.forEach((p) => {
+            p.getUniforms();
+            s.pending.delete(p);
+          });
+          s.linked.add(it.mat);
+          return true;
+        }
+        case "texture":
+          if (
+            it.tex.image ||
+            (it.tex as THREE.Texture & { isCubeTexture?: boolean })
+              .isCubeTexture
+          )
+            gl.initTexture(it.tex);
+          return true;
+        case "draw": {
+          // só desenha quando todos os materiais do lote estão compilados E ligados
+          // (o desenho nunca dispara uma compilação síncrona)
+          if (
+            it.polls < 600 &&
+            it.objs.some((o) => materialsOf(o).some((m) => !s.linked.has(m)))
+          ) {
+            it.polls++;
+            return false;
+          }
+          withCameraLayer(() => warmDraw(it.objs));
+          return true;
         }
       }
-    };
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    mounted,
-    post,
-    driver,
-    gl,
-    scene,
-    camera,
-    invalidate,
-    onReady,
-    requestStage,
-  ]);
+    },
+    [gl, camera, scene, withTarget, withCameraLayer, programsOf, warmDraw],
+  );
+
+  /** Um passo de preparação (com orçamento de tempo). */
+  const step = () => {
+    const s = st.current;
+    const now = performance.now();
+    const p = heroState.progress;
+    if (p !== s.lastP) ((s.lastP = p), (s.lastMove = now));
+
+    // frame a seguir à conclusão do estágio 0: a cena completa já foi desenhada → troca o poster
+    if (s.readyAt && now >= s.readyAt) {
+      s.readyAt = 0;
+      onReady?.();
+    }
+    if (s.nextRequest && now >= s.nextRequest) {
+      s.nextRequest = 0;
+      requestStage(s.done + 1);
+    }
+
+    const stage = s.done + 1;
+    if (stage > 2 || stage > s.scanned) return;
+    const q = s.queues[stage];
+    // orçamento por frame: estágio 0 (atrás da imagem inicial, o canvas não desenha nada) → 16 ms;
+    // fase seguinte quase a chegar → 12 ms; scroll parado → 8 ms; durante o scroll → 4 ms
+    const urgent = p >= STAGE_NEEDED_AT[stage] + 0.1;
+    const budget =
+      stage === 0 ? 16 : urgent ? 12 : now - s.lastMove > 250 ? 8 : 4;
+    let waits = 0;
+    s.newThisTick = 0;
+    while (q.length && performance.now() - now < budget && waits < q.length) {
+      const it = q.shift()!;
+      if (run(it)) waits = 0;
+      else (q.push(it), waits++);
+    }
+    if (q.length === 0) {
+      // estágio concluído (nova procura para apanhar peças montadas entretanto)
+      scan();
+      if (s.queues[stage].length) return void invalidate();
+      s.done = stage;
+      heroState.prepared = stage;
+      if (stage === 0) {
+        camera.layers.set(0); // este frame já desenha a cena completa
+        s.readyAt = now + 1;
+      }
+      if (stage < 2) s.nextRequest = now + 250;
+    }
+    invalidate();
+  };
+  const stepRef = useRef(step);
+  stepRef.current = step;
+  // dentro do ciclo de render enquanto o banner está visível…
+  useFrame(() => stepRef.current());
+  // …e por temporizador quando não está (o render pára fora do ecrã, a preparação não):
+  // quem fizer scroll até ao fim e voltar encontra a cena já preparada
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (!heroState.visible) stepRef.current();
+    }, 50);
+    return () => window.clearInterval(id);
+  }, []);
 
   return null;
 }

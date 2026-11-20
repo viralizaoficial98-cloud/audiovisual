@@ -18,17 +18,23 @@ export function Header() {
   const toggle = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    const onScroll = () => {
+    // o limite só muda com o tamanho da janela: medi-lo em cada evento de scroll forçava
+    // um cálculo de layout síncrono a meio do gesto
+    let limit = 80;
+    const measure = () => {
       const hero = document.getElementById("inicio");
-      const limit = hero ? hero.offsetTop + hero.offsetHeight - window.innerHeight * 0.6 : 80;
-      setSolid(window.scrollY > limit);
+      limit = hero ? hero.offsetTop + hero.offsetHeight - window.innerHeight * 0.6 : 80;
+      onScroll();
     };
-    onScroll();
+    const onScroll = () => setSolid(window.scrollY > limit);
+    measure();
     window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
+    // volta a medir quando o layout muda (resize, modo estático do banner, imagens…)
+    const ro = new ResizeObserver(measure);
+    ro.observe(document.documentElement);
     return () => {
       window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
+      ro.disconnect();
     };
   }, []);
 

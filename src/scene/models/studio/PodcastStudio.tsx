@@ -7,6 +7,7 @@ import { ease, lerp, range, type Vec3 } from "@/animation/math";
 import { STUDIO_STEPS as ST } from "@/animation/phases";
 import { useAssets } from "../../context";
 import { Assemble } from "../../parts/Assemble";
+import { heroState } from "@/animation/heroState";
 import { useAnim } from "../../parts/driver";
 import { MagneticField, MagneticPart, type MagneticSpec } from "../../parts/MagneticPart";
 import { Box, Cyl, Plane } from "../../parts/shapes";
@@ -222,7 +223,8 @@ export function PodcastStudio() {
 
   // o estúdio só existe a partir da fase ESTÚDIO (as fases aprovadas ficam iguais)
   useAnim((p) => {
-    if (root.current) root.current.visible = p >= 0.5502;
+    // só aparece depois de preparado na GPU (ver LightingKit)
+    if (root.current) root.current.visible = p >= 0.5502 && heroState.prepared >= 2;
     // as peças emergem do chão (como uma plataforma) antes da onda de activação
     if (pieces.current) pieces.current.position.y = -0.7 * (1 - ease.outCubic(range(p, ST.structure[0], ST.structure[0] + 0.018)));
   });
@@ -836,8 +838,12 @@ function LedStrips() {
 }
 
 /* --------------------------------------------------------- iluminação do estúdio */
-function StudioLighting({ M }: { M: { ledL: THREE.MeshStandardMaterial; ledR: THREE.MeshStandardMaterial; diffL: THREE.MeshStandardMaterial; diffR: THREE.MeshStandardMaterial } }) {
-  const { mat } = useAssets();
+/**
+ * Luzes REAIS do estúdio. Montadas desde o 1.º frame (fora do grupo do estúdio) e sempre
+ * "visíveis", com intensidade 0 até à fase ESTÚDIO — o número de luzes da cena nunca muda,
+ * logo os shaders nunca são recompilados ao mudar de fase. Mesmas fórmulas de intensidade.
+ */
+export function StudioLights() {
   const work = useRef<THREE.SpotLight>(null);
   const warmA = useRef<THREE.PointLight>(null);
   const warmB = useRef<THREE.PointLight>(null);
@@ -850,12 +856,61 @@ function StudioLighting({ M }: { M: { ledL: THREE.MeshStandardMaterial; ledR: TH
   }, []);
 
   useAnim((p) => {
-    const set = (m: THREE.Material, v: number) => ((m as THREE.MeshStandardMaterial).emissiveIntensity = v);
     const on = (a: number, b: number) => ease.inOutSine(range(p, ...sw(a, b)));
     const fin = ease.inOutSine(range(p, ST.finalLight[0], ST.finalLight[1]));
     const active = p > 0.5502;
     // luz de trabalho durante a montagem (a sala está escura); cede à iluminação final
     if (work.current) work.current.intensity = active ? on(0, 0.08) * lerp(40, 8, fin) : 0;
+    if (glint.current) {
+      const g = range(p, 0.9, 0.935);
+      glint.current.position.set(lerp(NICHE.x0, NICHE.x1, ease.inOutSine(g)), LOGO.pos[1] + 0.1, LOGO.pos[2] + 0.5);
+      glint.current.intensity = active ? Math.sin(Math.PI * g) * 3 : 0;
+    }
+    if (warmA.current) warmA.current.intensity = active ? fin * 16 : 0;
+    if (warmB.current) warmB.current.intensity = active ? fin * 11 : 0;
+    if (warmC.current) warmC.current.intensity = active ? fin * 8 : 0;
+  });
+
+  return (
+    <group name="luzes-estudio">
+      <primitive object={target} />
+      <spotLight
+        ref={work}
+        position={[CX, ROOM.height - 0.2, 3.4]}
+        target={target}
+        angle={1.0}
+        penumbra={1}
+        decay={1.2}
+        distance={14}
+        intensity={0}
+        color="#ffe6c0"
+        castShadow={false}
+      />
+      <pointLight ref={warmA} position={[CX, 3.2, -2.0]} color="#ffc76a" distance={9} decay={1.5} intensity={0} />
+      <pointLight ref={warmB} position={[CX, 3.0, 1.2]} color="#ffe2b0" distance={8} decay={1.5} intensity={0} />
+      <pointLight ref={warmC} position={[CX, 2.2, -3.6]} color="#ffb84a" distance={6} decay={1.6} intensity={0} />
+      <pointLight ref={glint} color="#ffd36b" distance={1.8} decay={2} intensity={0} />
+    </group>
+  );
+}
+
+/** Emissivos do estúdio (LEDs, ecrãs, logotipo) — as luzes reais estão em StudioLights. */
+function StudioLighting({
+  M,
+}: {
+  M: {
+    ledL: THREE.MeshStandardMaterial;
+    ledR: THREE.MeshStandardMaterial;
+    diffL: THREE.MeshStandardMaterial;
+    diffR: THREE.MeshStandardMaterial;
+  };
+}) {
+  const { mat } = useAssets();
+
+  useAnim((p) => {
+    const set = (m: THREE.Material, v: number) => ((m as THREE.MeshStandardMaterial).emissiveIntensity = v);
+    const on = (a: number, b: number) => ease.inOutSine(range(p, ...sw(a, b)));
+    const fin = ease.inOutSine(range(p, ST.finalLight[0], ST.finalLight[1]));
     // acendem à medida que os componentes são instalados
     set(mat.shelfLed, on(0.42, 0.5) * 1.2 + fin * 1.4);
     set(mat.ceilingSpot, on(0.4, 0.45) * 1.2 + fin * 2.4);
@@ -875,24 +930,7 @@ function StudioLighting({ M }: { M: { ledL: THREE.MeshStandardMaterial; ledR: TH
     const logoOn = on(0.95, 0.99);
     const pulse = Math.sin(Math.PI * range(p, 0.9, 0.94));
     set(mat.logoWall, 0.25 + logoOn * 0.75 + pulse * 0.6);
-    if (glint.current) {
-      const g = range(p, 0.9, 0.935);
-      glint.current.position.set(lerp(NICHE.x0, NICHE.x1, ease.inOutSine(g)), LOGO.pos[1] + 0.1, LOGO.pos[2] + 0.5);
-      glint.current.intensity = Math.sin(Math.PI * g) * 3;
-    }
-    if (warmA.current) warmA.current.intensity = fin * 16;
-    if (warmB.current) warmB.current.intensity = fin * 11;
-    if (warmC.current) warmC.current.intensity = fin * 8;
   });
 
-  return (
-    <group>
-      <primitive object={target} />
-      <spotLight ref={work} position={[CX, ROOM.height - 0.2, 3.4]} target={target} angle={1.0} penumbra={1} decay={1.2} distance={14} intensity={0} color="#ffe6c0" castShadow={false} />
-      <pointLight ref={warmA} position={[CX, 3.2, -2.0]} color="#ffc76a" distance={9} decay={1.5} intensity={0} />
-      <pointLight ref={warmB} position={[CX, 3.0, 1.2]} color="#ffe2b0" distance={8} decay={1.5} intensity={0} />
-      <pointLight ref={warmC} position={[CX, 2.2, -3.6]} color="#ffb84a" distance={6} decay={1.6} intensity={0} />
-      <pointLight ref={glint} color="#ffd36b" distance={1.8} decay={2} intensity={0} />
-    </group>
-  );
+  return null;
 }
