@@ -12,7 +12,6 @@ export type BrandImages = {
   logo: HTMLImageElement;
   mark: HTMLImageElement;
   word: HTMLImageElement;
-  banner: HTMLImageElement;
 };
 
 let brandPromise: Promise<BrandImages> | null = null;
@@ -36,14 +35,14 @@ export function loadBrandImages(): Promise<BrandImages> {
             document.fonts.load('600 32px "Inter Variable"'),
           ]).catch(() => undefined)
         : Promise.resolve();
-      const [logo, mark, word, banner] = await Promise.all([
-        loadImage("/brand/viraliza-logo.png"),
-        loadImage("/brand/viraliza-mark.png"),
-        loadImage("/brand/viraliza-wordmark.png"),
-        loadImage("/textures/banner.webp"),
+      // versões WebP (≈ 77 KB em vez de 247 KB em PNG) — só servem para desenhar texturas
+      const [logo, mark, word] = await Promise.all([
+        loadImage("/brand/viraliza-logo.webp"),
+        loadImage("/brand/viraliza-mark.webp"),
+        loadImage("/brand/viraliza-wordmark.webp"),
         fonts,
       ]);
-      return { logo, mark, word, banner };
+      return { logo, mark, word };
     })();
   }
   return brandPromise;
@@ -118,10 +117,6 @@ export function createTextures(img: BrandImages) {
   mark.colorSpace = THREE.SRGBColorSpace;
   mark.anisotropy = 8;
   mark.needsUpdate = true;
-  const banner = new THREE.Texture(img.banner);
-  banner.colorSpace = THREE.SRGBColorSpace;
-  banner.anisotropy = 8;
-  banner.needsUpdate = true;
 
   /** Painel lateral da câmara (lado direito, como nos renders de referência). */
   const sidePanel = canvasTex(1024, 720, (ctx, w, h) => {
@@ -516,7 +511,6 @@ export function createTextures(img: BrandImages) {
   return {
     logo,
     mark,
-    banner,
     sidePanel,
     pcb,
     monitor,

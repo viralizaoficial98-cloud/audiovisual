@@ -40,6 +40,17 @@ export function GoldParticles({ tier }: { tier: QualityTier }) {
     window.addEventListener("resize", resize);
     window.addEventListener("pointermove", onMove, { passive: true });
 
+    // sprite do brilho desenhado UMA vez (antes: 70 gradientes criados por frame → lixo/GC).
+    // gradiente igual ao anterior; a opacidade de cada partícula vai em globalAlpha.
+    const sprite = document.createElement("canvas");
+    sprite.width = sprite.height = 64;
+    const sg = sprite.getContext("2d")!;
+    const grad = sg.createRadialGradient(32, 32, 0, 32, 32, 32);
+    grad.addColorStop(0, "rgba(255,214,110,1)");
+    grad.addColorStop(1, "rgba(255,180,40,0)");
+    sg.fillStyle = grad;
+    sg.fillRect(0, 0, 64, 64);
+
     const end = ASSEMBLY.reveal[1];
     let raf = 0;
     let running = false;
@@ -69,12 +80,10 @@ export function GoldParticles({ tier }: { tier: QualityTier }) {
         const xx = q.x + Math.sin(t * 0.3 + q.ph) * 0.01 + pointer.sx * 0.02 * q.z;
         const rad = q.size * q.z * (cw / 900);
         const a = fade * (0.3 + 0.45 * Math.sin(t * 1.3 + q.ph) ** 2) * q.z;
-        const g = ctx.createRadialGradient(xx * cw, yy * ch, 0, xx * cw, yy * ch, rad * 4);
-        g.addColorStop(0, `rgba(255,214,110,${a.toFixed(3)})`);
-        g.addColorStop(1, "rgba(255,180,40,0)");
-        ctx.fillStyle = g;
-        ctx.fillRect(xx * cw - rad * 4, yy * ch - rad * 4, rad * 8, rad * 8);
+        ctx.globalAlpha = a;
+        ctx.drawImage(sprite, xx * cw - rad * 4, yy * ch - rad * 4, rad * 8, rad * 8);
       }
+      ctx.globalAlpha = 1;
       ctx.globalCompositeOperation = "source-over";
       raf = requestAnimationFrame(tick);
     };

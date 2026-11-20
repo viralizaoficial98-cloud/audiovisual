@@ -177,7 +177,7 @@ export function LightingKit() {
   );
 
   return (
-    <group ref={root} name="kit-iluminacao">
+    <group ref={root} name="kit-iluminacao" visible={false}>
       <MagneticField floorY={0}>
         {/* ===================== SUPORTES ===================== */}
         <MagneticPart spec={L.hero} name="tripe-camera">

@@ -85,7 +85,6 @@ export function createMaterials(tex: SceneTextures) {
     tableGlow: glow("#ffcc55", tex.tableStripes),
     tvScreen: std({ color: "#000", emissive: "#ffffff", emissiveMap: tex.tv, emissiveIntensity: 0, roughness: 0.25, metalness: 0.2 }),
     logoWall: std({ map: tex.logoWall, transparent: true, emissive: "#ffffff", emissiveMap: tex.logoWall, emissiveIntensity: 0.35, roughness: 0.5, depthWrite: false }),
-    banner: std({ map: tex.banner, emissive: "#ffffff", emissiveMap: tex.banner, emissiveIntensity: 0.08, roughness: 0.4 }),
     iconAudiovisual: std({ map: tex.iconAudiovisual, emissive: "#fff", emissiveMap: tex.iconAudiovisual, emissiveIntensity: 0, roughness: 0.4 }),
     iconPodcast: std({ map: tex.iconPodcast, emissive: "#fff", emissiveMap: tex.iconPodcast, emissiveIntensity: 0, roughness: 0.4 }),
     iconProducao: std({ map: tex.iconProducao, emissive: "#fff", emissiveMap: tex.iconProducao, emissiveIntensity: 0, roughness: 0.4 }),

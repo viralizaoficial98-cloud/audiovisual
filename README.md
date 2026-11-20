@@ -94,16 +94,44 @@ Durante a montagem, as peças que esperam a meio ou à frente da sala sobem para
 
 ### Desempenho e acessibilidade
 
-- 3 níveis de qualidade detectados automaticamente (`src/lib/quality.ts`; forçar com `?quality=high|medium|low`): resolução, sombras, bloom, chão reflector, cones de luz e densidade de adereços. O `PerformanceMonitor` baixa a resolução se o FPS cair.
-- Shaders pré-compilados antes de remover o loader; render pausa quando o banner sai do ecrã.
+- 3 níveis de qualidade detectados automaticamente (`src/lib/quality.ts`; forçar com `?quality=high|medium|low`): resolução, sombras, bloom, chão reflector, cones de luz e densidade de adereços. A detecção usa núcleos/memória, tipo de ecrã e o **nome da GPU** (renderização por software → `low`; GPU integrada Intel/AMD APU → `medium`, sem sombras; GPU dedicada/Apple Silicon → `high`). A sequência de montagem é igual em todos os níveis — só muda o custo de renderização.
+- **Resolução adaptativa** (`AdaptiveResolution` em `HeroScene.tsx`): mede o ritmo real dos frames só enquanto a animação avança e baixa/sobe o devicePixelRatio em degraus; a mudança só é aplicada com o scroll parado (nunca redimensiona o canvas a meio de um gesto).
+- Render pausa quando o banner sai do ecrã; nos ecrãs tácteis só desenha quando o progresso muda.
 - Sem WebGL → sequência de imagens sincronizada com o scroll (fallback 2D assumido). `prefers-reduced-motion` → banner estático, sem WebGL.
 - No mobile: secção mais curta, FOV adaptado a ecrãs verticais e enquadramento centrado no set de podcast.
+
+### Carregamento progressivo e fluidez (optimização de desempenho)
+
+**Primeiro ecrã imediato.** O HTML já traz a imagem inicial (`public/hero/poster-*.avif|webp`, 13–27 KB): um render da *própria cena 3D* em p = 0, em versão horizontal e vertical. O motor 3D (three.js + cena, chunk separado) descarrega em segundo plano; quando o primeiro frame 3D real está desenhado, a imagem desvanece (700 ms) — sem flash preto nem salto de layout. O "A PREPARAR O ESTÚDIO" passou a ser um indicador discreto (canto superior esquerdo) que não bloqueia o menu, o scroll nem o botão "Saltar introdução", e só desaparece quando a cena está mesmo pronta (sem temporizadores).
+
+**Carregamento por fases** (`HeroScene.tsx`):
+
+| Estágio | O quê | Quando |
+|---|---|---|
+| 0 | câmara + ambiente | logo (é o que se vê no 1.º ecrã) |
+| 1 | kit de iluminação + texturas | em tempo ocioso após o 1.º frame, ou já se o scroll passar p = 0.22 |
+| 2 | estúdio de podcast | em tempo ocioso após o estágio 1, ou já se o scroll passar p = 0.42 |
+
+**Porque havia congelamentos.** Medido com perfis de CPU (Chrome DevTools Protocol):
+1. *Shaders compilados a meio do scroll.* O número de luzes visíveis faz parte de cada shader do three.js; ao entrar nas fases LUZ (10 → 17 luzes) e ESTÚDIO (→ 22) todos os materiais precisavam de novas variantes, compiladas no próprio frame. A pré-compilação antiga só cobria o estado "tudo visível" e, com pós-processamento, compilava as variantes do ecrã em vez das do render target.
+2. *Mudanças de resolução durante o gesto.* O `PerformanceMonitor` mudava o devicePixelRatio (e realocava o canvas e os buffers do pós-processamento) a meio do scroll — e, no modo "a pedido" dos telemóveis, interpretava os frames em repouso como FPS baixo.
+3. *Primeiro uso de geometria/texturas* (≈ 380 geometrias enviadas para a GPU só quando apareciam).
+
+**O que mudou.**
+- *Aquecimento por fase*: o driver de animação ganhou `applyAt(p)` (todas as peças são função pura do progresso), que coloca a cena no estado de uma fase futura, de forma síncrona. Em tempo ocioso e com o scroll parado, a cena é posta nesse estado, os shaders são preparados com `compileAsync` (compilação paralela quando o navegador suporta `KHR_parallel_shader_compile`) no mesmo destino do render real, faz-se um desenho de aquecimento sem culling (envia geometria e texturas) e o estado actual é reposto na mesma tarefa — nada chega ao ecrã.
+- *Resolução adaptativa* nova (ver acima) em vez do `PerformanceMonitor`.
+- *Resposta ao scroll*: suavização do scrub reduzida de 1 s → 0.5 s (desktop) e 0.6 s → 0.35 s (toque).
+- *Partículas douradas*: um sprite pré-desenhado em vez de 70 gradientes criados por frame.
+- *Recursos*: removida uma textura de 88 KB que nenhuma peça usava; logótipos da cena em WebP (247 KB → 79 KB); texturas fotográficas da câmara a meia resolução em ecrãs tácteis/nível `low` (438 KB → 146 KB); peças magnéticas libertam os seus recursos GPU ao desmontar.
+- Diagnóstico: `?perf` expõe o renderer em `window.__viralizaGL`; `window.__viralizaHero.prepared` indica as fases já preparadas.
+
+_(Métricas antes/depois: ver secção seguinte, preenchida após a medição.)_
 
 ### Mobile (iOS Safari / Chrome Android)
 
 - É a **mesma cena 3D** e a mesma timeline do desktop (não há slides): o toque no ecrã faz scroll e o scroll comanda a montagem, em ambos os sentidos.
 - Enquadramento vertical: em ecrãs com proporção < 1 a câmara recua (`CameraRig`, curva `pow(rest, lerp(1.0, 0.12, inRoom))`) para a câmara montada e o kit de luz caberem inteiros; no estúdio o recuo diminui para mostrar o set.
-- GPU/bateria: em dispositivos de toque o Canvas usa `frameloop="demand"` — só renderiza quando o progresso muda (e no máximo ~15 fps em repouso para as animações de idle); partículas a ~30 fps; luzes pontuais reduzidas em retrato; nível de qualidade `low/medium` e `PerformanceMonitor` como no desktop.
+- GPU/bateria: em dispositivos de toque o Canvas usa `frameloop="demand"` — só renderiza quando o progresso muda (e no máximo ~15 fps em repouso para as animações de idle); partículas a ~30 fps; luzes pontuais reduzidas em retrato; nível de qualidade `low/medium`, resolução adaptativa e texturas da câmara a meia resolução.
 - `ScrollTrigger.config({ ignoreMobileResize: true })`: a barra de endereço do iOS/Android a aparecer/desaparecer não recalcula a timeline (sem saltos).
 - Sem WebGL → sequência de imagens; **"Reduzir movimento" activo no sistema → banner estático** (por desenho). Se no telemóvel aparecer só a imagem fixa, verifique esta definição de acessibilidade.
 - Testado em emulação Chromium (iPhone 13, Pixel 7) com gestos de toque reais via CDP; **não foi testado em dispositivos físicos nem no WebKit do Safari** — FPS e aquecimento reais ainda por medir.

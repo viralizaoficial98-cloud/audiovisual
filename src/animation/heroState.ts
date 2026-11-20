@@ -10,6 +10,8 @@ export const heroState = {
   progress: 0,
   /** true quando a secção do banner está visível (a cena pausa o render fora do ecrã). */
   visible: true,
+  /** Fases já preparadas na GPU (0 = câmara; 1 = + kit de luz; 2 = + estúdio). -1 = a carregar. */
+  prepared: -1,
 };
 
 type Listener = (p: number) => void;

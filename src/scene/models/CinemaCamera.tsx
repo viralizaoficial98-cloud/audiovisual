@@ -33,20 +33,30 @@ const FLOOR_Y = -HERO_ASSEMBLY[1] / HERO_SCALE;
 const YAW_ASSEMBLY = 0.42;
 const YAW_REVEAL = 1.3;
 
+const PHOTO_TEXTURES = {
+  side: "side-panel",
+  mic: "mic",
+  barrel: "lens-barrel",
+  glass: "lens-glass",
+  top: "top-module",
+  pcb: "pcb",
+  sensor: "sensor",
+  monitor: "monitor",
+  sd: "sd-card",
+  battery: "battery",
+  fan: "fan",
+} as const;
+
+/** Texturas fotográficas da câmara. Ecrãs tácteis e nível "low" usam a versão a metade da
+ *  resolução (-sm: 146 KB em vez de 438 KB) — no ecrã de um telemóvel a diferença não se vê. */
 function usePhotoTextures() {
-  const t = useTexture({
-    side: "/textures/camera/side-panel.webp",
-    mic: "/textures/camera/mic.webp",
-    barrel: "/textures/camera/lens-barrel.webp",
-    glass: "/textures/camera/lens-glass.webp",
-    top: "/textures/camera/top-module.webp",
-    pcb: "/textures/camera/pcb.webp",
-    sensor: "/textures/camera/sensor.webp",
-    monitor: "/textures/camera/monitor.webp",
-    sd: "/textures/camera/sd-card.webp",
-    battery: "/textures/camera/battery.webp",
-    fan: "/textures/camera/fan.webp",
-  });
+  const tier = useTier();
+  const small = useMemo(() => tier === "low" || (typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches), [tier]);
+  const urls = useMemo(
+    () => Object.fromEntries(Object.entries(PHOTO_TEXTURES).map(([k, f]) => [k, `/textures/camera/${f}${small ? "-sm" : ""}.webp`])) as Record<keyof typeof PHOTO_TEXTURES, string>,
+    [small],
+  );
+  const t = useTexture(urls);
   return useMemo(() => {
     Object.values(t).forEach((x) => {
       x.colorSpace = THREE.SRGBColorSpace;

@@ -203,6 +203,75 @@ await step("[reduced-motion] mostra versão estática sem WebGL", async () => {
   await ctx.close();
 });
 
+// ---------------------------------------------------------------------------
+// Carregamento progressivo e fluidez
+// ---------------------------------------------------------------------------
+await step("[carregamento] o 1.º ecrã vem no HTML (imagem inicial prioritária, sem ecrã preto bloqueante)", async () => {
+  const ctx = await browser.newContext();
+  const html = await (await ctx.request.get(URL)).text();
+  assert.ok(html.includes("data-hero-poster"), "imagem inicial no HTML");
+  assert.ok(/\/hero\/poster-[a-z0-9-]+\.avif/.test(html), "AVIF");
+  assert.ok(/fetchpriority="high"/i.test(html), "prioridade alta");
+  const loader = html.match(/<div[^>]*data-hero-loader[^>]*>/)?.[0] ?? "";
+  assert.ok(loader.includes("pointer-events-none") && !loader.includes("inset-0"), "o indicador não cobre o ecrã nem bloqueia cliques");
+  await ctx.close();
+});
+
+await step("[carregamento] navegação livre enquanto o motor 3D carrega; troca suave para a cena", async () => {
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const page = await ctx.newPage();
+  // atrasa as texturas da câmara: a cena 3D fica "a carregar" durante alguns segundos
+  let release;
+  const gate = new Promise((r) => (release = r));
+  await page.route("**/textures/camera/**", async (route) => {
+    await gate;
+    await route.continue();
+  });
+  await page.goto(URL + "?quality=low", { waitUntil: "domcontentloaded" });
+  await page.waitForFunction(() => document.querySelector("[data-hero-poster] img")?.naturalWidth > 0, null, { timeout: 15000 });
+  assert.equal(await page.locator("[data-scene-ready]").count(), 0, "a cena ainda está a carregar");
+  const box = await page.locator("[data-hero-loader]").boundingBox();
+  assert.ok(box && box.height < 80 && box.width < 1440 * 0.5, "indicador discreto");
+  const atCenter = await page.evaluate(() => document.elementFromPoint(innerWidth / 2, innerHeight / 2)?.closest("[data-hero-loader]"));
+  assert.equal(atCenter, null, "o centro do ecrã não está tapado pelo indicador");
+  // o utilizador já pode navegar e saltar a introdução
+  await page.getByRole("button", { name: "Saltar introdução" }).click();
+  await page.waitForFunction(() => window.__viralizaHero.progress > 0.99, null, { timeout: 10000 });
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.locator('header a[href="#servicos"]').first().click();
+  await page.waitForFunction(() => Math.abs(document.getElementById("servicos").getBoundingClientRect().top) < 120, null, { timeout: 10000 });
+  // liberta as texturas: a cena fica pronta e a imagem inicial sai (sem flash: transição de opacidade)
+  release();
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForSelector("[data-scene-ready]", { timeout: 120000 });
+  await page.waitForFunction(() => !document.querySelector("[data-hero-poster]"), null, { timeout: 5000 });
+  await ctx.close();
+});
+
+await step("[fluidez] depois da preparação em segundo plano, nenhum shader é compilado durante o scroll", async () => {
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  const page = await ctx.newPage();
+  await page.addInitScript(() => {
+    window.__links = 0;
+    for (const C of [window.WebGLRenderingContext, window.WebGL2RenderingContext]) {
+      const o = C?.prototype.linkProgram;
+      if (o) C.prototype.linkProgram = function (p) { window.__links++; return o.call(this, p); };
+    }
+  });
+  await page.goto(URL + "?quality=low&perf", { waitUntil: "domcontentloaded" });
+  await page.waitForFunction(() => window.__viralizaHero?.prepared >= 2, null, { timeout: 300000, polling: 500 });
+  await page.waitForTimeout(1500);
+  const before = await page.evaluate(() => window.__links);
+  for (const p of [0.1, 0.3, 0.41, 0.45, 0.5, 0.56, 0.62, 0.7, 0.8, 0.9, 1, 0.6, 0.45, 0.2, 0]) {
+    await scrollToP(page, p);
+    await waitP(page, p);
+    await page.waitForTimeout(150);
+  }
+  const after = await page.evaluate(() => window.__links);
+  assert.equal(after - before, 0, `${after - before} shaders compilados durante o scroll`);
+  await ctx.close();
+});
+
 await browser.close();
 
 await step("[sem WebGL] usa sequência de imagens e mantém a navegação", async () => {

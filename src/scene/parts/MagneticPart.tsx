@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useLayoutEffect, useMemo, useRef, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from "react";
 import * as THREE from "three";
 import { clamp, ease, range, type Vec3 } from "@/animation/math";
 import { useAnim, useTier } from "./driver";
@@ -127,6 +127,16 @@ export function MagneticPart({ children, spec, name }: { children: ReactNode; sp
     l.frustumCulled = false;
     return l;
   }, []);
+
+  // liberta os recursos GPU próprios da peça se ela for desmontada
+  useEffect(
+    () => () => {
+      sparkMat.dispose();
+      lineObj.geometry.dispose();
+      (lineObj.material as THREE.Material).dispose();
+    },
+    [sparkMat, lineObj],
+  );
 
   useLayoutEffect(() => {
     const o = outer.current;

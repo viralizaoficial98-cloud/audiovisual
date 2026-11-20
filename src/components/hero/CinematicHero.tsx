@@ -6,11 +6,13 @@ import { buildHeroTimeline, ScrollTrigger } from "@/animation/heroTimeline";
 import { heroState, setHeroProgress } from "@/animation/heroState";
 import { detectTier, detectWebGL, prefersReducedMotion, type QualityTier } from "@/lib/quality";
 import { HeroOverlay } from "./HeroOverlay";
-import { HeroLoader } from "./HeroLoader";
+import { HeroLoader, HeroPoster } from "./HeroLoader";
 import { ImageSequenceFallback, StaticHero } from "./HeroFallback";
 import { GoldParticles } from "./GoldParticles";
 
-const HeroScene = dynamic(() => import("@/scene/HeroScene"), { ssr: false, loading: () => null });
+// o motor 3D (three.js + cena) é um chunk à parte, carregado em segundo plano
+const loadScene = () => import("@/scene/HeroScene");
+const HeroScene = dynamic(loadScene, { ssr: false, loading: () => null });
 
 type Mode = "pending" | "webgl" | "fallback" | "static";
 
@@ -35,6 +37,7 @@ export function CinematicHero() {
     if (prefersReducedMotion()) setMode("static");
     else if (!detectWebGL()) setMode("fallback");
     else {
+      loadScene(); // começa já a descarregar o motor 3D (em paralelo com a hidratação)
       setTier(detectTier());
       setMode("webgl");
     }
@@ -47,7 +50,9 @@ export function CinematicHero() {
     const stg = stage.current;
     if (!sec || !stg) return;
     const coarse = window.matchMedia("(pointer: coarse)").matches;
-    const tl = buildHeroTimeline(sec, stg, { scrub: coarse ? 0.6 : 1 });
+    // scrub curto: a cena acompanha o dedo/roda quase de imediato, mas ainda suaviza os
+    // degraus da roda do rato (antes 1 s / 0.6 s — dava a sensação de resposta atrasada)
+    const tl = buildHeroTimeline(sec, stg, { scrub: coarse ? 0.35 : 0.5 });
     tlRef.current = tl;
     // se a página abrir a meio (refresh/âncora), sincroniza imediatamente
     requestAnimationFrame(() => {
@@ -104,11 +109,14 @@ export function CinematicHero() {
       aria-label="Introdução cinematográfica: montagem do universo audiovisual Viraliza"
       className="relative h-[905svh] md:h-[1120vh]"
     >
-      <div ref={stage} className="sticky top-0 h-[100svh] w-full overflow-hidden bg-ink">
+      <div ref={stage} className="sticky top-0 h-[100svh] w-full overflow-hidden bg-ink" data-scene-ready={ready ? "" : undefined}>
         <div className="absolute inset-0" aria-hidden>
           {mode === "webgl" && <HeroScene tier={tier} active={active} onReady={onReady} />}
           {mode === "fallback" && <ImageSequenceFallback />}
         </div>
+        {/* 1.º ecrã imediato (render da própria cena em p = 0), POR CIMA do canvas enquanto
+            este prepara os shaders — desvanece quando o primeiro frame 3D real foi desenhado */}
+        {mode !== "fallback" && <HeroPoster hidden={ready} />}
         {/* partículas douradas em primeiro plano durante a montagem magnética */}
         {mode === "webgl" && <GoldParticles tier={tier} />}
         <HeroOverlay onSkip={skip} />
