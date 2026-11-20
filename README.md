@@ -146,7 +146,19 @@ Durante a montagem, as peças que esperam a meio ou à frente da sala sobem para
 | Pior long task no estúdio (1.ª passagem), telemóvel | 1564 ms | 326 ms |
 | Geometrias GPU após 8 saídas/regressos ao banner | +18 (fuga pré-existente, medida antes da correcção) | +0 |
 
-Limitações honestas: (1) não houve acesso a dispositivos reais nem ao site publicado a partir deste ambiente — FPS reais, aquecimento e Lighthouse em produção ficam por medir num telemóvel/PC reais (sugestão: Chrome DevTools → Performance com "CPU 4× slowdown" e Lighthouse mobile em `https://audiovisual.viralizahost.com/`); (2) se o visitante fizer scroll até ao estúdio *no próprio instante* em que a cena aparece, antes de a preparação em segundo plano terminar, alguns shaders ainda são compilados nesse momento (como antes) — numa GPU real a preparação demora tipicamente 1–2 s, aqui demora dezenas de segundos por causa do SwiftShader.
+**1.ª visita — antes → depois da revisão "luzes constantes + preparação em fatias"** (contexto novo, cache vazia, scroll real com a roda: banner inteiro em ~12 s, depois inverso rápido e avanço rápido em ~1.5 s cada; versão anterior = commit `0287e42`). Para separar *congelamentos* do custo de desenho da GPU emulada, as janelas são pequenas (256×144 e 640×360); "buraco" = tempo sem frames na main thread.
+
+| Configuração | Pior buraco com a cena 3D já visível (durante a animação) | Todas as fases preparadas | Maior tarefa longa | Tempo bloqueado a ligar shaders |
+|---|---|---|---|---|
+| Desktop `low`, CPU 1× | 3 978 ms → **438 ms** | 45.8 s → **10.5 s** | 970 → 434 ms | 2 641 → 135 ms |
+| Desktop `medium` (pós-processamento), CPU 1× | 3 016 ms → **367 ms** | 42.6 s → **11.7 s** | 1 208 → 591 ms | 2 465 → 1 269 ms |
+| Telemóvel, CPU 4× | 3 130 ms → **564 ms** | 42.7 s → **22.2 s** | 422 → 508 ms | 612 → 885 ms |
+| Telemóvel, CPU 4× + "Slow 4G" | 3 695 ms → **420 ms** | 49.6 s → **19.0 s** | 1 071 → 404 ms | 2 645 → 364 ms |
+| Desktop `medium` 640×360, CPU 1× | 2 033 ms → **585 ms** | 42.4 s → **20.3 s** | 1 405 → 539 ms | 735 → 1 088 ms |
+
+Os ~0.4–0.6 s que restam são o tempo de desenho de um frame no SwiftShader (p95 ≈ 0.3 s em ambas as versões), não congelamentos. Outras medições: 28 programas de shader no total (antes 62); 0 shaders compilados durante o scroll depois da preparação (teste e2e); 7 commits React num scroll completo (nenhum por frame); listeners `wheel`/`touchmove` todos passivos. Custos honestos: a cena 3D substitui a imagem inicial ~1 s mais tarde (a preparação é fatiada); na fase da câmara o desenho custa mais (luzes constantes) — no teste mais pesado em GPU (640×360 `medium`) houve mais frames acima de 250 ms (190 → 410); continua a existir um bloqueio na inicialização (atrás da imagem inicial, 1–4 s no SwiftShader) causado pela criação do contexto WebGL, do mapa de ambiente (PMREM) e dos passes de pós-processamento, que compilam os seus shaders no primeiro frame.
+
+Limitações honestas: (1) não houve acesso a dispositivos reais nem ao site publicado a partir deste ambiente — FPS reais, aquecimento e Lighthouse em produção ficam por medir num telemóvel/PC reais (sugestão: Chrome DevTools → Performance com "CPU 4× slowdown" e Lighthouse mobile em `https://audiovisual.viralizahost.com/`); (2) se o visitante chegar a uma fase antes de ela estar preparada (scroll muito rápido logo na 1.ª visita), o scroll continua normalmente mas essa fase só aparece quando a preparação termina (surge já no estado do progresso actual, sem recompilar nada); (3) Safari/iPhone: não foi possível confirmar se o WebKit expõe `KHR_parallel_shader_compile` — sem ela cada programa novo custa o seu tempo de compilação, mas no máximo um por passo; (4) os listeners `touchstart`/`pointer*` a nível de `window`/`document` vêm das bibliotecas (React Three Fiber/GSAP); o Chrome trata-os como passivos por omissão nesses alvos, mas não foi verificado em dispositivos reais.
 
 
 ### Mobile (iOS Safari / Chrome Android)
