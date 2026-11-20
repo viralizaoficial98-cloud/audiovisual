@@ -80,8 +80,8 @@ export function buildHeroTimeline(section: HTMLElement, stage: HTMLElement, opts
   tl.fromTo(
     q(stage, "[data-reveal-cta]"),
     { autoAlpha: 0, y: 24 },
-    { autoAlpha: 1, y: 0, duration: 0.035, stagger: 0.008, ease: "power2.out" },
-    S(T.reveal.in[1] - 0.06),
+    { autoAlpha: 1, y: 0, duration: 0.025, stagger: 0.006, ease: "power2.out" },
+    S(T.reveal.in[1] - 0.02),
   );
   // pausa final: mantém o estado completo antes de libertar o scroll
   tl.to({}, { duration: 0.0001 }, 1);

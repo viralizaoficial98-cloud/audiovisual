@@ -11,10 +11,10 @@ export const PHASES = {
   camera: { start: 0.12, end: 0.4 },
   /** Fase 3 — montagem do sistema de iluminação */
   lights: { start: 0.4, end: 0.55 },
-  /** Fase 4 — construção da sala de podcast */
-  studio: { start: 0.55, end: 0.85 },
-  /** Fase 5 — revelação do estúdio completo */
-  reveal: { start: 0.85, end: 1 },
+  /** Fase 4 — montagem magnética da sala de podcast (0% → 100%) */
+  studio: { start: 0.55, end: 0.9 },
+  /** Fase 5 — banner final: estúdio completo, aproximação e estabilização */
+  reveal: { start: 0.9, end: 1 },
 } as const;
 
 export type PhaseKey = keyof typeof PHASES;
@@ -52,31 +52,41 @@ export const LIGHTS = {
  * Sub-janelas da fase 4: as 14 etapas de construção do estúdio, pela ordem pedida.
  * Ligeiramente sobrepostas para que a montagem tenha continuidade (sem "esperas" vazias).
  */
+/** Converte uma fracção (0..1) da montagem do estúdio em progresso de cena (0.55 → 0.90). */
+export const studioAt = (f: number) => 0.55 + 0.35 * f;
+const sw = (a: number, b: number) => [studioAt(a), studioAt(b)] as const;
+
+/**
+ * FASE 4 — MONTAGEM MAGNÉTICA DO ESTÚDIO (marcos pedidos: 0% desmontado, 25%, 50%, 75%, 100%).
+ * Janelas em progresso de cena; cada peça tem a sua sub-janela em src/scene/models/studio/.
+ */
 export const STUDIO_STEPS = {
-  structure: [0.55, 0.6] as const,
-  acoustic: [0.572, 0.63] as const,
-  coverings: [0.588, 0.645] as const,
-  ledStrips: [0.606, 0.66] as const,
-  logoPanel: [0.622, 0.67] as const,
-  tv: [0.638, 0.68] as const,
-  shelves: [0.648, 0.7] as const,
-  seating: [0.665, 0.72] as const,
-  table: [0.69, 0.735] as const,
-  mics: [0.706, 0.75] as const,
-  accessories: [0.722, 0.762] as const,
-  cameras: [0.732, 0.782] as const,
-  lighting: [0.748, 0.795] as const,
-  production: [0.762, 0.81] as const,
-  finalLight: [0.8, 0.86] as const,
+  /** estrutura base (paredes, tecto) e chão de peças a emergir */
+  structure: sw(0, 0.08),
+  /** onda de activação magnética: as peças levitam */
+  activation: sw(0.06, 0.24),
+  /** painéis acústicos, ripas, tecto acústico */
+  acoustic: sw(0.1, 0.28),
+  /** suportes, tripés, iluminação, prateleiras, painéis de identidade */
+  supports: sw(0.22, 0.48),
+  /** cadeiras, mesa central, tapete, cadeirões */
+  scene: sw(0.4, 0.62),
+  /** microfones, câmaras, áudio, ecrã, decoração */
+  equipment: sw(0.58, 0.88),
+  /** logotipo VIRALIZA na parede central (última peça) */
+  logo: sw(0.86, 0.97),
+  /** fitas LED douradas e iluminação final */
+  finalLight: sw(0.84, 1),
 };
+
 
 /** Textos sobrepostos por fase (in/out em progresso global). */
 export const OVERLAY_TIMING = {
   intro: { out: [0.07, 0.11] },
   camera: { in: [0.3, 0.34], out: [0.385, 0.415] },
   lights: { in: [0.505, 0.518], out: [0.534, 0.543] },
-  studio: { in: [0.615, 0.655], out: [0.8, 0.84] },
-  reveal: { in: [0.885, 0.95] },
+  studio: { in: [0.6, 0.63], out: [0.69, 0.715] },
+  reveal: { in: [0.935, 0.975] },
 } as const;
 
 /** Etiquetas do indicador lateral de progresso. */
@@ -115,15 +125,16 @@ export const ASSEMBLY = {
  * contínuo e monótono, portanto reversível.
  */
 /**
- * Troços (scroll, cena). A câmara mantém 40,7% do scroll (≈ os mesmos 370vh de antes);
- * a fase LUZ recebe ~25% e a sua cena final fica parada durante 5% (pausa de apreciação).
+ * Troços (scroll, cena) para um banner de 1120vh. Câmara e luzes mantêm os mesmos vh
+ * aprovados; o estúdio recebe ~360vh e o banner final ~114vh.
  */
 const KNOTS: Array<[number, number]> = [
   [0, 0],
-  [0.407, 0.4],
-  [0.66, 0.545],
-  [0.71, 0.55],
-  [1, 1],
+  [0.3307, 0.4], // câmara: 370vh de 1120vh (igual ao aprovado)
+  [0.5363, 0.545], // luzes: ~230vh
+  [0.5769, 0.55], // pausa da revelação das luzes: ~45vh
+  [0.8983, 0.9], // montagem do estúdio: ~360vh
+  [1, 1], // banner final: ~114vh
 ];
 
 function piecewise(t: number, from: 0 | 1, to: 0 | 1) {

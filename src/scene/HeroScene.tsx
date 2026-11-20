@@ -13,7 +13,7 @@ import { CameraRig } from "./CameraRig";
 import { Atmosphere, Floor, SceneLighting } from "./Environment";
 import { CinemaCamera } from "./models/CinemaCamera";
 import { LightingKit } from "./models/lighting/LightingKit";
-import { Studio } from "./models/Studio";
+import { PodcastStudio } from "./models/studio/PodcastStudio";
 
 type Props = {
   tier: QualityTier;
@@ -63,7 +63,7 @@ export default function HeroScene({ tier, active, onReady }: Props) {
             <Atmosphere />
             <CinemaCamera />
             <LightingKit />
-            <Studio />
+            <PodcastStudio />
             <ReadySignal onReady={onReady} />
           </SceneAssetsProvider>
         </Suspense>

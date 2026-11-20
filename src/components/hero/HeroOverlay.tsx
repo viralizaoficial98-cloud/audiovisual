@@ -67,7 +67,7 @@ export function HeroOverlay({ onSkip }: { onSkip: () => void }) {
       {/* gradientes para legibilidade sem tapar a cena */}
       <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-ink/80 to-transparent" aria-hidden />
       <div className="absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-ink/85 to-transparent" aria-hidden />
-      <div data-reveal-shade className="invisible absolute inset-0 bg-[radial-gradient(ellipse_at_50%_80%,rgba(8,8,8,.88)_0%,rgba(8,8,8,.55)_45%,rgba(8,8,8,0)_75%)]" aria-hidden />
+      <div data-reveal-shade className="invisible absolute inset-x-0 bottom-0 h-[42%] bg-gradient-to-t from-ink/92 via-ink/55 to-transparent" aria-hidden />
 
       <h1 className="sr-only">VIRALIZA Audiovisual &amp; Podcast — estúdio de podcast e produção audiovisual em Luanda, Angola</h1>
 
@@ -119,21 +119,20 @@ export function HeroOverlay({ onSkip }: { onSkip: () => void }) {
       </div>
 
       {/* FASE 5 — revelação */}
-      <div data-phase="reveal" className="invisible absolute inset-x-0 bottom-[9%] flex flex-col items-center px-5 text-center md:bottom-[10%]">
+      <div data-phase="reveal" className="invisible absolute inset-x-0 bottom-[7%] flex flex-col items-center px-5 text-center md:bottom-[6%]">
         <p data-fade className="mb-4 text-[11px] font-semibold tracking-[0.36em] text-brand uppercase">
           Luanda · Angola
         </p>
-        <h2 id="hero-title" tabIndex={-1} className="font-display text-[2.5rem] leading-[0.95] font-extrabold tracking-tight outline-none sm:text-6xl md:text-[4.75rem]">
+        <h2 id="hero-title" tabIndex={-1} className="font-display text-[2.5rem] leading-[0.95] font-extrabold tracking-tight outline-none sm:text-6xl md:text-[2.9rem]">
           <Words text="VIRALIZA" />
-          <br />
-          <span className="text-brand">
+          <br className="md:hidden" /> <span className="text-brand">
             <Words text="AUDIOVISUAL & PODCAST" />
           </span>
         </h2>
-        <p data-fade className="mt-5 max-w-xl text-base text-white/80 md:text-xl">
+        <p data-fade className="mt-3 max-w-xl text-base text-white/80 md:text-lg">
           Transformamos momentos em experiências memoráveis.
         </p>
-        <div className="pointer-events-auto mt-8 flex w-full max-w-md flex-col gap-3 sm:max-w-none sm:flex-row sm:justify-center">
+        <div className="pointer-events-auto mt-6 flex w-full max-w-md flex-col gap-3 sm:max-w-none sm:flex-row sm:justify-center">
           <a data-reveal-cta href="#reserva" className="btn-primary invisible">
             Reservar sala de podcast
           </a>

@@ -18,10 +18,9 @@ const FRAMES = [
   { src: "/images/camera/parte3-montada.webp", at: [0, 0.42] },
   { src: "/images/iluminacao/parte1-desmontada.webp", at: [0.4, 0.48] },
   { src: "/images/iluminacao/parte2-montada.webp", at: [0.47, 0.58] },
-  { src: "/images/estudio-kit.webp", at: [0.55, 0.66] },
-  { src: "/images/estudio-montagem.webp", at: [0.63, 0.76] },
-  { src: "/images/estudio-podcast.webp", at: [0.72, 0.88] },
-  { src: "/images/estudio-completo.webp", at: [0.84, 1.01] },
+  { src: "/images/estudio-kit.webp", at: [0.55, 0.7] },
+  { src: "/images/estudio-montagem.webp", at: [0.66, 0.84] },
+  { src: "/images/estudio-podcast.webp", at: [0.8, 1.01] },
 ] as const;
 
 export function ImageSequenceFallback() {
@@ -63,7 +62,7 @@ export function ImageSequenceFallback() {
 export function StaticHero() {
   return (
     <section id="inicio" className="relative flex min-h-[100svh] items-end overflow-hidden bg-ink">
-      <Image src="/images/estudio-completo.webp" alt="Visualização conceptual do estúdio de podcast VIRALIZA totalmente montado" fill priority sizes="100vw" className="object-cover" />
+      <Image src="/images/estudio-podcast.webp" alt="Visualização conceptual do estúdio de podcast VIRALIZA totalmente montado" fill priority sizes="100vw" className="object-cover" />
       <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/70 to-ink/10" />
       <div className="relative z-10 w-full px-5 pt-40 pb-20 text-center text-white md:pb-28">
         <p className="mb-4 text-[11px] font-semibold tracking-[0.36em] text-brand uppercase">Luanda · Angola</p>

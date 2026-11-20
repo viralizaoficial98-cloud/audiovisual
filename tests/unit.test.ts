@@ -92,6 +92,21 @@ test("fase LUZ: 6 sub-fases contíguas, dentro da fase e depois da câmara", asy
   assert.ok(P.lights.start >= ASSEMBLY.reveal[1], "a luz começa depois de a câmara estar montada");
   assert.equal(lightAt(0), 0.4);
   assert.equal(lightAt(1), 0.55);
-  // a câmara mantém o mesmo comprimento de scroll (0.407 do banner de 910vh ≈ 370vh)
-  assert.ok(Math.abs(scrollToScene(0.407) - 0.4) < 1e-9);
+  // a câmara mantém o mesmo comprimento de scroll (≈ 370vh do banner de 1120vh)
+  assert.ok(Math.abs(scrollToScene(0.3307) - 0.4) < 1e-9);
+  assert.ok(Math.abs(0.3307 * 1120 - 370.4) < 0.5);
+});
+
+test("fase ESTÚDIO: 0,55→0,90 com marcos 0/25/50/75/100% e banner final até 1", async () => {
+  const { PHASES: P, STUDIO_STEPS: S, studioAt, scrollToScene, sceneToScroll } = await import("@/animation/phases");
+  assert.equal(P.studio.start, 0.55);
+  assert.equal(P.studio.end, 0.9);
+  assert.deepEqual([P.reveal.start, P.reveal.end], [0.9, 1]);
+  assert.equal(studioAt(0), 0.55);
+  assert.ok(Math.abs(studioAt(1) - 0.9) < 1e-12);
+  for (const [a, b] of Object.values(S)) assert.ok(a >= P.studio.start - 1e-9 && b <= P.studio.end + 1e-9 && a < b);
+  assert.ok(S.logo[1] <= S.finalLight[1], "o logotipo é a última peça e encaixa antes do fim da iluminação");
+  // a fase LUZ termina na mesma posição de scroll em vh (≈ 646vh) que na versão aprovada
+  assert.ok(Math.abs(sceneToScroll(0.55) * 1120 - 646.1) < 0.6);
+  assert.ok(Math.abs(scrollToScene(sceneToScroll(0.725)) - 0.725) < 1e-9);
 });

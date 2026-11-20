@@ -122,9 +122,12 @@ export function KitEffects({ m, ledL, ledR, softbox, ring }: { m: KitMaterials; 
     m.ledR.emissiveIntensity = R * 2.6 * b;
     m.ring.emissiveIntensity = G * 3 * b;
     m.diffuser.emissiveIntensity = S * 2.2 * b;
-    if (spotL.current) spotL.current.intensity = L * 15 * (1 + 0.2 * fin(p));
-    if (spotR.current) spotR.current.intensity = R * 15 * (1 + 0.2 * fin(p));
-    if (spotS.current) spotS.current.intensity = S * 20 * (1 + 0.2 * fin(p));
+    // durante a montagem do estúdio os focos baixam (não iluminam o chão à frente) e voltam
+    // à intensidade total quando são reorientados para o set (só actua depois de 0.55)
+    const dim = 1 - 0.7 * range(p, 0.55, 0.58) * (1 - range(p, REAIM[0], REAIM[1]));
+    if (spotL.current) spotL.current.intensity = L * 15 * (1 + 0.2 * fin(p)) * dim;
+    if (spotR.current) spotR.current.intensity = R * 15 * (1 + 0.2 * fin(p)) * dim;
+    if (spotS.current) spotS.current.intensity = S * 20 * (1 + 0.2 * fin(p)) * dim;
     // parede de fundo: sobe do chão, a moldura LED acende; recolhe quando o estúdio começa
     const rise = on(p, POWER.backdropRise) * (1 - ease.inOutCubic(range(p, STUDIO_STEPS.structure[0], STUDIO_STEPS.structure[0] + 0.025)));
     if (backdrop.current) {
@@ -173,8 +176,8 @@ export function KitEffects({ m, ledL, ledR, softbox, ring }: { m: KitMaterials; 
       {spot(spotS, softbox, 0.75, tier === "high")}
       {tier !== "low" && (
         <>
-          <BeamCone from={ledL} to={toward(ledL, KIT_FOCUS, 0.5)} radius={0.38} intensity={(p) => on(p, POWER.ledL) * 0.045 * (1 - range(p, REAIM[0], REAIM[1]))} />
-          <BeamCone from={ledR} to={toward(ledR, KIT_FOCUS, 0.5)} radius={0.38} intensity={(p) => on(p, POWER.ledR) * 0.045 * (1 - range(p, REAIM[0], REAIM[1]))} />
+          <BeamCone from={ledL} to={toward(ledL, KIT_FOCUS, 0.5)} radius={0.38} intensity={(p) => on(p, POWER.ledL) * 0.045 * (1 - range(p, 0.55, 0.57))} />
+          <BeamCone from={ledR} to={toward(ledR, KIT_FOCUS, 0.5)} radius={0.38} intensity={(p) => on(p, POWER.ledR) * 0.045 * (1 - range(p, 0.55, 0.57))} />
           <BeamCone from={ledL} to={SET_FOCUS} radius={0.75} intensity={(p) => on(p, POWER.ledL) * 0.05 * range(p, REAIM[0], REAIM[1])} />
           <BeamCone from={ledR} to={SET_FOCUS} radius={0.75} intensity={(p) => on(p, POWER.ledR) * 0.05 * range(p, REAIM[0], REAIM[1])} />
         </>

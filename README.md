@@ -47,7 +47,23 @@ Módulos em `src/scene/models/lighting/`: `kitLayout.ts` (posições finais = Lu
 
 Durante a fase LUZ os painéis apontam para o centro do kit (faces visíveis, como na referência); quando o estúdio começa a ser construído rodam para o set de podcast e a parede de fundo recolhe para o chão.
 
-O scroll está dividido em troços (`KNOTS` em `phases.ts`): a câmara mantém exactamente o mesmo comprimento de scroll (≈ 370vh), a fase LUZ recebe ~25% e a sua cena final fica parada 5% do scroll. A timeline GSAP tem de durar exactamente 1 — há um aviso em desenvolvimento se algum tween ultrapassar o fim.
+O scroll está dividido em troços (`KNOTS` em `phases.ts`, banner de 1120vh / 905svh no mobile): câmara ≈ 370vh, LUZ ≈ 230vh + 45vh de pausa, estúdio ≈ 360vh, banner final ≈ 114vh. Os valores em vh da câmara e da LUZ são os mesmos das versões aprovadas. A timeline GSAP tem de durar exactamente 1 — há um aviso em desenvolvimento se algum tween ultrapassar o fim.
+
+### Fase ESTÚDIO: montagem robótica magnética da sala de podcast (3D real)
+
+Módulo `src/scene/models/studio/`: `studioLayout.ts` (planta = imagem oficial Podcast Parte3, flat-lay, onda de activação) e `PodcastStudio.tsx` (~70 peças com `MagneticPart`, fitas LED, acendimento progressivo e banner final). Reutiliza os modelos de `props.tsx` e do kit de iluminação.
+
+| Estúdio | Progresso de cena | O que acontece |
+|---|---|---|
+| 0% | 0,55 | Sala vazia e escura; as paredes sobem; todas as peças desmontadas, pousadas no chão em filas organizadas |
+| 6–24% | 0,571–0,634 | Onda de activação magnética: as peças levitam (por distância ao set) e esperam numa "nuvem" alta, a rodar |
+| 25% | 0,6375 | Ripas acústicas, tecto acústico e espuma encaixam; prateleiras e tábuas a chegar |
+| 50% | 0,725 | Tripés, softboxes, LEDs baixos, calha do tecto, painéis de identidade e ar condicionado; tapete, mesa e cadeirões |
+| 75% | 0,8125 | Braços e microfones, câmara no tripé, mesa de produção e áudio, ecrã, decoração das prateleiras; os LEDs do kit são orientados para o set |
+| 100% | 0,90 | Fitas LED douradas e iluminação final; o logotipo VIRALIZA é a última peça |
+| Banner | 0,90–1 | Brilho dourado no logotipo, aproximação da câmara e estabilização; título e botões; o scroll segue para as secções |
+
+Durante a montagem, as peças que esperam a meio ou à frente da sala sobem para uma nuvem alta (y ≥ 2,7 m) para nunca ficarem entre a câmara e o set. O tapete é a única peça que não voa: desenrola-se no lugar. Os focos do kit baixam durante a montagem e voltam ao máximo quando são reorientados para o set.
 
 ### Sequência completa
 
@@ -55,6 +71,8 @@ O scroll está dividido em troços (`KNOTS` em `phases.ts`): a câmara mantém e
 |---|---|---|
 | 1–2 — Visão / Câmara | 0–40% | Montagem magnética da câmara (acima) |
 | 3 — Luz | 40–55% | Montagem magnética do kit de iluminação (acima) |
+| 4 — Estúdio | 55–90% | Montagem magnética da sala de podcast (acima) |
+| 5 — Banner | 90–100% | Estúdio completo como banner final |
 | 3 — Luz | 35–55% | A câmara viaja até ao tripé; tripés levantam-se do chão, abrem as pernas, colunas sobem; painéis LED encaixam e abrem as abas; softbox expande; cabos são passados; luzes reais acendem |
 | 4 — Estúdio | 55–85% | 14 etapas: paredes, painéis acústicos, revestimentos, fitas LED, logotipo, TV, estantes, cadeiras/sofás, mesa, microfones, acessórios, câmaras, iluminação, mesa de produção, luz final |
 | 5 — Revelação | 85–100% | Dolly-out, título, subtítulo, botões e preço |
@@ -66,6 +84,7 @@ O scroll está dividido em troços (`KNOTS` em `phases.ts`): a câmara mantém e
 
 ### Limitações (transparência)
 
+- Estúdio: a composição final segue a Podcast Parte3 (mesmos elementos, nas mesmas zonas), mas o render 3D é menos exuberante que a imagem: menos brilho e detalhe nas prateleiras, câmaras dos extremos mais pequenas no enquadramento, tapete sem pêlo, plantas estilizadas. A softbox da girafa (montada na fase LUZ aprovada) fica entre o set e o ecrã, onde a referência mostra o centro limpo. Não há passagem para a fotografia no fim: a cena 3D é o próprio banner.
 - Kit de iluminação: geometria 3D coerente com as imagens + texturas recortadas da imagem oficial (mala, controlador, saco de areia, base do ring light). A softbox aponta para o set de podcast (vemos o lado de trás e não o difusor de frente como em Luzes-Parte2), não há plantas na fase LUZ e o render é mais escuro e menos fotorrealista do que a imagem de referência.
 - A câmara é **3D procedural** revestida com texturas das fotografias oficiais. Para fotorrealismo total (detalhes finos, cabos, parafusos reais, materiais PBR) seria necessário um modelo GLB modelado à mão (Blender) com as mesmas peças separadas — o motor `MagneticPart` aceita-o sem alterações.
 - **Não havia modelos 3D (GLB) nos anexos** — só imagens PNG/WebP, que não têm geometria. Por isso, a câmara, as luzes e o estúdio foram **modelados proceduralmente em Three.js** (primitivas, texturas geradas em canvas com o logotipo real). A montagem é 3D real, com peças individuais, mas o nível de detalhe é de *motion design* estilizado, não fotorrealista como os renders.

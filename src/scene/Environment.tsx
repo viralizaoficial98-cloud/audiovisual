@@ -51,8 +51,8 @@ export function SceneLighting() {
     const room = ease.inOutSine(range(p, STUDIO_STEPS.structure[0], STUDIO_STEPS.finalLight[1]));
     const fin = ease.inOutSine(range(p, STUDIO_STEPS.finalLight[0], STUDIO_STEPS.finalLight[1]));
     const kit = ease.inOutSine(range(p, 0.37, 0.5));
-    if (ambient.current) ambient.current.intensity = 0.08 + kit * 0.1 + room * 0.08 + fin * 0.16;
-    if (hemi.current) hemi.current.intensity = 0.12 + kit * 0.3 + room * 0.15 + fin * 0.3;
+    if (ambient.current) ambient.current.intensity = 0.08 + kit * 0.1 + room * 0.08 + fin * 0.3;
+    if (hemi.current) hemi.current.intensity = 0.12 + kit * 0.3 + room * 0.15 + fin * 0.6;
     if (key.current) key.current.intensity = 34 * product;
     if (fill.current) fill.current.intensity = 9 * product;
     // luz superior sobre as peças pousadas no chão (apaga-se quando já levitam)

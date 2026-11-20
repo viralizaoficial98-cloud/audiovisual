@@ -49,7 +49,8 @@ export function aim(pos: Vec3, y: number, target: Vec3 = SET_FOCUS) {
  * Luzes-Parte2: faces LED visíveis); quando o estúdio começa a ser construído, rodam para o set.
  */
 export const KIT_FOCUS: Vec3 = [2.1, 1.1, 1.7];
-export const REAIM: readonly [number, number] = [0.552, 0.6];
+// (na etapa final do estúdio — "os equipamentos LED são orientados para o cenário")
+export const REAIM: readonly [number, number] = [0.767, 0.795];
 
 // ---------------- posições finais ----------------
 export const LED_L = LIGHT_POS.ledLeft;
