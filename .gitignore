@@ -8,3 +8,6 @@ next-env.d.ts
 .vercel
 test-results/
 screenshots/
+
+# gerado automaticamente pelo `next dev`
+AGENTS.md
