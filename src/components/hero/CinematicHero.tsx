@@ -3,11 +3,13 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { buildHeroTimeline, ScrollTrigger } from "@/animation/heroTimeline";
-import { heroState, setHeroProgress } from "@/animation/heroState";
+import { heroState, onHeroProgress, setHeroProgress } from "@/animation/heroState";
+import { SHOWCASE } from "@/animation/phases";
 import { detectTier, detectWebGL, prefersReducedMotion, type QualityTier } from "@/lib/quality";
 import { HeroOverlay } from "./HeroOverlay";
 import { HeroLoader } from "./HeroLoader";
 import { ImageSequenceFallback, StaticHero } from "./HeroFallback";
+import { CameraShowcase } from "./CameraShowcase";
 
 const HeroScene = dynamic(() => import("@/scene/HeroScene"), { ssr: false, loading: () => null });
 
@@ -27,6 +29,7 @@ export function CinematicHero() {
   const [mode, setMode] = useState<Mode>("pending");
   const [tier, setTier] = useState<QualityTier>("medium");
   const [ready, setReady] = useState(false);
+  const [firstImage, setFirstImage] = useState(false);
   const [active, setActive] = useState(true);
 
   // decide o modo no cliente (WebGL, fallback por imagens, ou estático por reduced-motion)
@@ -70,10 +73,26 @@ export function CinematicHero() {
     if (!sec) return;
     const io = new IntersectionObserver(([e]) => {
       heroState.visible = e.isIntersecting;
-      setActive(e.isIntersecting);
+      inView = e.isIntersecting;
+      update();
     });
+    // Em ecrãs horizontais as fotografias oficiais cobrem todo o ecrã nas Partes 1–3:
+    // a cena 3D (invisível por trás) deixa de ser desenhada até à transição frontal.
+    let inView = true;
+    const update = () => {
+      const landscape = window.innerWidth / window.innerHeight >= 1.2;
+      const covered = landscape && heroState.progress < SHOWCASE.t34[0] - 0.008;
+      setActive(inView && !covered);
+    };
+    const off = onHeroProgress(update);
+    window.addEventListener("resize", update);
+    update();
     io.observe(sec);
-    return () => io.disconnect();
+    return () => {
+      io.disconnect();
+      off();
+      window.removeEventListener("resize", update);
+    };
   }, []);
 
   const skip = useCallback(() => {
@@ -93,6 +112,7 @@ export function CinematicHero() {
   }, []);
 
   const onReady = useCallback(() => setReady(true), []);
+  const onFirstImage = useCallback(() => setFirstImage(true), []);
 
   if (mode === "static") return <StaticHero />;
 
@@ -101,15 +121,17 @@ export function CinematicHero() {
       ref={section}
       id="inicio"
       aria-label="Introdução cinematográfica: montagem do universo audiovisual Viraliza"
-      className="relative h-[520svh] md:h-[640vh]"
+      className="relative h-[600svh] md:h-[740vh]"
     >
       <div ref={stage} className="sticky top-0 h-[100svh] w-full overflow-hidden bg-ink">
         <div className="absolute inset-0" aria-hidden>
           {mode === "webgl" && <HeroScene tier={tier} active={active} onReady={onReady} />}
           {mode === "fallback" && <ImageSequenceFallback />}
         </div>
+        {/* introdução com as 4 imagens oficiais da câmara (2.5D) por cima da cena 3D */}
+        {(mode === "webgl" || mode === "fallback") && <CameraShowcase tier={mode === "fallback" ? "low" : tier} onFirstImage={onFirstImage} />}
         <HeroOverlay onSkip={skip} />
-        {mode !== "fallback" && <HeroLoader done={ready} />}
+        {mode !== "fallback" && <HeroLoader done={ready && firstImage} />}
         <p className="sr-only">
           Animação controlada pelo scroll: uma câmara profissional Viraliza é montada peça a peça, seguida do sistema de iluminação e da construção
           da sala de podcast. Pode saltar a introdução a qualquer momento.

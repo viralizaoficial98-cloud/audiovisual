@@ -65,3 +65,21 @@ test("matemática da animação é reversível (pura)", () => {
   assert.equal(sampleKeys(keys, 0.3, out)[0], a, "mesmo p → mesmo estado (ida e volta)");
   assert.equal(sampleKeys(keys, 1, out)[0], 20);
 });
+
+test("introdução fotográfica: janelas ordenadas e mapeamento scroll↔cena reversível", async () => {
+  const { SHOWCASE, CAMERA_3D_FROM, sceneToScroll, scrollToScene, LIGHTS: L } = await import("@/animation/phases");
+  const ws = Object.values(SHOWCASE);
+  for (let i = 1; i < ws.length; i++) assert.equal(ws[i][0], ws[i - 1][1], "janelas contíguas");
+  assert.equal(ws[0][0], 0);
+  assert.ok(CAMERA_3D_FROM <= L.cameraMove[0], "a câmara 3D reaparece antes de partir para o tripé");
+  let prev = -1;
+  for (let i = 0; i <= 100; i++) {
+    const t = i / 100;
+    const p = scrollToScene(t);
+    assert.ok(p >= prev, "monótono");
+    prev = p;
+    assert.ok(Math.abs(sceneToScroll(p) - t) < 1e-9, "inverso exacto");
+  }
+  assert.equal(scrollToScene(0), 0);
+  assert.equal(scrollToScene(1), 1);
+});

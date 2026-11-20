@@ -14,10 +14,8 @@ import { openQuote } from "@/components/forms/quoteBus";
  * real só existe no modo WebGL.
  */
 const FRAMES = [
-  { src: "/images/camera-explodida.webp", at: [0, 0.2] },
-  { src: "/images/camera-montagem.webp", at: [0.15, 0.3] },
-  { src: "/images/camera-montada.webp", at: [0.25, 0.4] },
-  { src: "/images/iluminacao-kit.webp", at: [0.35, 0.47] },
+  // (a introdução da câmara usa a camada CameraShowcase com as 4 imagens oficiais)
+  { src: "/images/iluminacao-kit.webp", at: [0, 0.47] },
   { src: "/images/iluminacao-montada.webp", at: [0.44, 0.58] },
   { src: "/images/estudio-kit.webp", at: [0.55, 0.66] },
   { src: "/images/estudio-montagem.webp", at: [0.63, 0.76] },

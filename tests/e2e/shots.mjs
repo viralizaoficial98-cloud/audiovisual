@@ -19,7 +19,7 @@ await page.waitForFunction(() => !document.querySelector("[data-hero-loader]"), 
 for (const p of ps) {
   await page.evaluate((p) => {
     const s = document.getElementById("inicio");
-    const top = s.offsetTop + p * (s.offsetHeight - innerHeight);
+    const top = s.offsetTop + window.__viralizaMap.sceneToScroll(p) * (s.offsetHeight - innerHeight);
     window.scrollTo(0, top);
   }, p);
   await page.waitForFunction((p) => Math.abs(window.__viralizaHero.progress - p) < 0.002, p, { timeout: 30000 }).catch(() => {});

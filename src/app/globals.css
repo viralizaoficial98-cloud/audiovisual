@@ -97,3 +97,35 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* ---------- Introdução fotográfica (CameraShowcase) ---------- */
+/* Paisagem: a fotografia cobre o ecrã sem deformação (corta só as margens escuras). */
+.shot-plane {
+  width: max(100vw, calc(100svh * var(--ratio)));
+  aspect-ratio: var(--ratio);
+}
+/* bordas laterais dissolvem-se no fundo (visíveis quando a fotografia se desloca/reduz) */
+.shot-plane > img {
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 7%, #000 93%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 7%, #000 93%, transparent 100%);
+}
+/* Retrato: a câmara inteira fica visível; as margens superior/inferior dissolvem-se no fundo. */
+@media (orientation: portrait) {
+  .shot-plane {
+    width: 108vw;
+  }
+  .shot-plane > img {
+    -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 14%, #000 86%, transparent 100%), linear-gradient(90deg, transparent 0%, #000 4%, #000 96%, transparent 100%);
+    -webkit-mask-composite: source-in;
+    mask-image: linear-gradient(180deg, transparent 0%, #000 14%, #000 86%, transparent 100%), linear-gradient(90deg, transparent 0%, #000 4%, #000 96%, transparent 100%);
+    mask-composite: intersect;
+  }
+}
+.glow-spot {
+  position: absolute;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  mix-blend-mode: screen;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(255, 214, 110, 0.5) 0%, rgba(255, 180, 40, 0.18) 35%, transparent 68%);
+}

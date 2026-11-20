@@ -1,6 +1,6 @@
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { OVERLAY_TIMING } from "./phases";
+import { OVERLAY_TIMING, sceneToScroll as S, scrollToScene } from "./phases";
 import { setHeroProgress } from "./heroState";
 
 /**
@@ -18,7 +18,8 @@ function words(root: HTMLElement, phase: string) {
 }
 
 /** Entrada de uma fase: palavras sobem de dentro da máscara, com stagger. */
-function phaseIn(tl: gsap.core.Timeline, root: HTMLElement, phase: string, [a, b]: readonly [number, number]) {
+function phaseIn(tl: gsap.core.Timeline, root: HTMLElement, phase: string, [pa, pb]: readonly [number, number]) {
+  const [a, b] = [S(pa), S(pb)];
   const block = q(root, `[data-phase="${phase}"]`);
   const span = b - a;
   tl.fromTo(block, { autoAlpha: 0 }, { autoAlpha: 1, duration: span * 0.25 }, a);
@@ -27,7 +28,8 @@ function phaseIn(tl: gsap.core.Timeline, root: HTMLElement, phase: string, [a, b
 }
 
 /** Saída de uma fase: palavras saem para cima e o bloco desvanece. */
-function phaseOut(tl: gsap.core.Timeline, root: HTMLElement, phase: string, [a, b]: readonly [number, number]) {
+function phaseOut(tl: gsap.core.Timeline, root: HTMLElement, phase: string, [pa, pb]: readonly [number, number]) {
+  const [a, b] = [S(pa), S(pb)];
   const span = b - a;
   tl.to(words(root, phase), { yPercent: -115, duration: span * 0.8, stagger: span * 0.04, ease: "power2.in" }, a);
   tl.to(q(root, `[data-phase="${phase}"] [data-fade]`), { autoAlpha: 0, y: -12, duration: span * 0.6 }, a);
@@ -50,7 +52,9 @@ export function buildHeroTimeline(section: HTMLElement, stage: HTMLElement, opts
   });
 
   // 1) progresso global para a cena 3D (linear: o easing vive em cada peça)
-  tl.to(state, { progress: 1, duration: 1, onUpdate: () => setHeroProgress(state.progress) }, 0);
+  // (posições da timeline = fracção de scroll; o progresso de cena passa pelo mapeamento
+  //  que dá mais scroll à introdução fotográfica — ver scrollToScene em phases.ts)
+  tl.to(state, { progress: 1, duration: 1, ease: scrollToScene, onUpdate: () => setHeroProgress(state.progress) }, 0);
 
   // 2) textos por fase
   const T = OVERLAY_TIMING;
@@ -68,13 +72,13 @@ export function buildHeroTimeline(section: HTMLElement, stage: HTMLElement, opts
   phaseOut(tl, stage, "studio", T.studio.out);
 
   // Fase 5 — revelação: escurecimento para legibilidade, título, subtítulo e botões
-  tl.fromTo(q(stage, "[data-reveal-shade]"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.08 }, T.reveal.in[0] - 0.02);
+  tl.fromTo(q(stage, "[data-reveal-shade]"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.08 }, S(T.reveal.in[0] - 0.02));
   phaseIn(tl, stage, "reveal", T.reveal.in);
   tl.fromTo(
     q(stage, "[data-reveal-cta]"),
     { autoAlpha: 0, y: 24 },
     { autoAlpha: 1, y: 0, duration: 0.05, stagger: 0.012, ease: "power2.out" },
-    T.reveal.in[1] - 0.04,
+    S(T.reveal.in[1] - 0.04),
   );
   // pausa final: mantém o estado completo antes de libertar o scroll
   tl.to({}, { duration: 0.0001 }, 1);

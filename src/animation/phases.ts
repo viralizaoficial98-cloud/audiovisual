@@ -70,3 +70,48 @@ export const CHAPTERS: Array<{ key: PhaseKey; label: string }> = [
   { key: "studio", label: "Estúdio" },
   { key: "reveal", label: "Revelação" },
 ];
+
+/**
+ * Introdução com as 4 imagens oficiais da câmara (camada 2.5D sobre a cena 3D).
+ * Janelas em progresso de cena. A câmara 3D fica escondida enquanto as fotografias
+ * estão em cena e reaparece quando a lente se abre ("portal") para o mundo 3D.
+ */
+export const SHOWCASE = {
+  /** Parte 1 — desmontada */
+  hold1: [0, 0.075] as const,
+  /** transição 1→2: o núcleo monta-se a partir do centro */
+  t12: [0.075, 0.135] as const,
+  /** Parte 2 — montagem a 50% */
+  hold2: [0.135, 0.185] as const,
+  /** transição 2→3: varrimento de luz dourada */
+  t23: [0.185, 0.225] as const,
+  /** Parte 3 — câmara montada (lateral) */
+  hold3: [0.225, 0.275] as const,
+  /** transição 3→4: rotação simulada para a vista frontal */
+  t34: [0.275, 0.31] as const,
+  /** Parte 4 — aproximação à lente e revelação da marca */
+  hold4: [0.31, 0.352] as const,
+  /** a lente abre-se e revela o mundo 3D */
+  portal: [0.352, 0.395] as const,
+};
+
+/** A câmara 3D só aparece a partir daqui (já montada, a caminho do tripé). */
+export const CAMERA_3D_FROM = SHOWCASE.portal[0];
+
+/**
+ * Mapeamento scroll → cena. A introdução fotográfica (cena 0 → 0.40) recebe 47% do
+ * scroll; o resto da narrativa mantém todas as janelas originais. Linear por troços,
+ * contínuo e monótono, portanto reversível.
+ */
+const INTRO_SCENE = 0.4;
+const INTRO_SCROLL = 0.47;
+
+export function scrollToScene(t: number) {
+  const c = t < 0 ? 0 : t > 1 ? 1 : t;
+  return c <= INTRO_SCROLL ? (c / INTRO_SCROLL) * INTRO_SCENE : INTRO_SCENE + ((c - INTRO_SCROLL) / (1 - INTRO_SCROLL)) * (1 - INTRO_SCENE);
+}
+
+export function sceneToScroll(p: number) {
+  const c = p < 0 ? 0 : p > 1 ? 1 : p;
+  return c <= INTRO_SCENE ? (c / INTRO_SCENE) * INTRO_SCROLL : INTRO_SCROLL + ((c - INTRO_SCENE) / (1 - INTRO_SCENE)) * (1 - INTRO_SCROLL);
+}

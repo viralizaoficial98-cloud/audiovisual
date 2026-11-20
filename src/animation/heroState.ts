@@ -1,3 +1,5 @@
+import { sceneToScroll, scrollToScene } from "./phases";
+
 /**
  * Estado partilhado entre a timeline GSAP (escrita) e a cena WebGL (leitura por frame).
  * É um objecto mutável de propósito: actualizá-lo não provoca re-renders do React,
@@ -27,5 +29,7 @@ export function onHeroProgress(l: Listener) {
 
 // Exposto para testes automáticos (e2e) e depuração — apenas leitura.
 if (typeof window !== "undefined") {
-  (window as unknown as { __viralizaHero?: typeof heroState }).__viralizaHero = heroState;
+  const w = window as unknown as { __viralizaHero?: typeof heroState; __viralizaMap?: { sceneToScroll: typeof sceneToScroll; scrollToScene: typeof scrollToScene } };
+  w.__viralizaHero = heroState;
+  w.__viralizaMap = { sceneToScroll, scrollToScene };
 }

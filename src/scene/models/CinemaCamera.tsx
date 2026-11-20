@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import type { Group } from "three";
 import { ease, lerp, range, type Vec3 } from "@/animation/math";
-import { LIGHTS, PHASES } from "@/animation/phases";
+import { CAMERA_3D_FROM, LIGHTS, PHASES } from "@/animation/phases";
 import { useAssets } from "../context";
 import { Assemble } from "../parts/Assemble";
 import { useAnim } from "../parts/driver";
@@ -36,6 +36,9 @@ export function CinemaCamera() {
   useAnim((p) => {
     const g = root.current;
     if (!g) return;
+    // Durante a introdução fotográfica (4 imagens oficiais) a câmara 3D fica escondida
+    // para não haver duplicados; reaparece já montada quando a lente "abre" o mundo 3D.
+    g.visible = p >= CAMERA_3D_FROM - 0.002;
     const intro = ease.inOutSine(range(p, 0, PHASES.exploded.end));
     const build = ease.inOutCubic(range(p, P2a, P2b));
     const move = ease.inOutCubic(range(p, LIGHTS.cameraMove[0], LIGHTS.cameraMove[1]));

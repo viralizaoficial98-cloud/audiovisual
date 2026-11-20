@@ -37,7 +37,7 @@ const progress = (page) => page.evaluate(() => window.__viralizaHero.progress);
 const scrollToP = (page, p) =>
   page.evaluate((p) => {
     const s = document.getElementById("inicio");
-    window.scrollTo(0, s.offsetTop + p * (s.offsetHeight - innerHeight));
+    window.scrollTo(0, s.offsetTop + window.__viralizaMap.sceneToScroll(p) * (s.offsetHeight - innerHeight));
   }, p);
 const waitP = (page, p) => page.waitForFunction((p) => Math.abs(window.__viralizaHero.progress - p) < 0.003, p, { timeout: 20000 });
 
@@ -51,7 +51,8 @@ for (const vp of [
   await step(`${tag} abre directamente no banner, câmara desmontada (p=0)`, async () => {
     assert.equal(await page.evaluate(() => window.scrollY), 0);
     assert.equal(await progress(page), 0);
-    assert.ok(await page.locator("canvas").isVisible());
+    assert.ok(await page.locator("canvas:not([data-dust])").isVisible());
+    assert.ok(await page.locator('img[src*="parte1-desmontada"]').isVisible(), "imagem oficial Parte 1 visível");
     assert.ok(await page.getByText("COMEÇA COM UMA VISÃO.").isVisible());
   });
 
@@ -85,8 +86,9 @@ for (const vp of [
   await step(`${tag} a página continua depois da animação (sem saltos)`, async () => {
     const before = await page.evaluate(() => document.getElementById("servicos").getBoundingClientRect().top);
     assert.ok(Math.abs(before - (await page.evaluate(() => innerHeight))) < 2, `serviços começa logo após o banner (top=${before})`);
+    await page.mouse.move(vp.width / 2, vp.height / 2);
     await page.mouse.wheel(0, 600);
-    await page.waitForTimeout(400);
+    await page.waitForFunction((b) => document.getElementById("servicos").getBoundingClientRect().top < b - 300, before, { timeout: 5000 }).catch(() => {});
     const after = await page.evaluate(() => document.getElementById("servicos").getBoundingClientRect().top);
     assert.ok(after < before - 300);
   });
@@ -176,8 +178,8 @@ await step("[sem WebGL] usa sequência de imagens e mantém a navegação", asyn
   const b = await chromium.launch({ args: ["--disable-webgl", "--disable-webgl2", "--disable-3d-apis"] });
   const page = await b.newPage({ viewport: { width: 1280, height: 800 } });
   await page.goto(URL, { waitUntil: "networkidle" });
-  assert.equal(await page.locator("canvas").count(), 0);
-  assert.ok((await page.locator("#inicio img").count()) >= 5);
+  assert.equal(await page.locator("canvas:not([data-dust])").count(), 0);
+  assert.ok(await page.locator('img[src*="parte1-desmontada"]').isVisible());
   await page.getByRole("button", { name: "Saltar introdução" }).click();
   await page.waitForFunction(() => window.__viralizaHero.progress > 0.99, null, { timeout: 10000 });
   await b.close();

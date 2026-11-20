@@ -9,7 +9,7 @@ import { Reveal } from "@/components/ui/Reveal";
 export function Events() {
   return (
     <section id="eventos" aria-labelledby="eventos-title" className="relative isolate overflow-hidden px-5 py-28 md:px-10 md:py-40">
-      <Image src="/images/camera-frontal.webp" alt="" fill sizes="100vw" className="-z-20 object-cover opacity-40" />
+      <Image src="/images/camera/parte4-frontal.webp" alt="" fill sizes="100vw" className="-z-20 object-cover opacity-40" />
       <div className="absolute inset-0 -z-10 bg-gradient-to-r from-ink via-ink/90 to-ink/40" aria-hidden />
       <div className="absolute inset-x-0 top-0 -z-10 h-40 bg-gradient-to-b from-ink to-transparent" aria-hidden />
       <div className="absolute inset-x-0 bottom-0 -z-10 h-40 bg-gradient-to-t from-ink to-transparent" aria-hidden />

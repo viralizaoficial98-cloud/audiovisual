@@ -14,10 +14,28 @@ npm run test:e2e     # testes no browser (precisa do servidor a correr)
 
 ## Como funciona a animação
 
-| Fase | Progresso | O que acontece |
+### Introdução da câmara — 4 imagens oficiais (camada 2.5D)
+
+`src/components/hero/CameraShowcase.tsx` (janelas em `SHOWCASE`, `src/animation/phases.ts`). As imagens estão em `public/images/camera/` na resolução original, sem recompressão nem deformação.
+
+| Progresso de cena | Imagem / transição |
+|---|---|
+| 0–7,5% | **Parte 1** desmontada — flutuação, aproximação, luz progressiva, partículas douradas |
+| 7,5–13,5% | 1→2: o núcleo monta-se a partir do centro (máscara radial) com flash dourado |
+| 13,5–18,5% | **Parte 2** 50% — assentamento/estabilização, brilho no sensor, aproximação |
+| 18,5–22,5% | 2→3: varrimento de luz dourada (cortina) |
+| 22,5–27,5% | **Parte 3** montada — movimento lateral, reflexo a percorrer o equipamento, destaque do logotipo e do selo 4K |
+| 27,5–31% | 3→4: rotação simulada (perspectiva + cortina, sem duplicados) |
+| 31–35,2% | **Parte 4** frontal — aproximação à lente, flare anamórfico, símbolo VIRALIZA a acender dentro da lente |
+| 35,2–39,5% | Portal: a lente abre-se e revela o mundo 3D, onde a câmara 3D (já montada) segue para o tripé |
+
+As imagens são 2D: a rotação lateral → frontal é **simulada** (não há geometria nas fotografias). A introdução recebe 47% do scroll através de um mapeamento contínuo e reversível (`scrollToScene`), sem alterar as janelas das fases seguintes. Em ecrãs horizontais, a cena WebGL (escondida pelas fotografias) pausa o render até à transição frontal.
+
+### Sequência completa
+
+| Fase | Progresso de cena | O que acontece |
 |---|---|---|
-| 1 — Visão | 0–15% | ~30 peças da câmara suspensas em vista explodida; afastam-se ligeiramente ao começar o scroll |
-| 2 — Câmara | 15–35% | Cada peça encaixa com a sua trajectória (estrutura, sensor, circuitos, ópticas, objectiva, pára-sol, painel, monitor, bateria, microfone, cartões, parafusos que roscam); a câmara roda |
+| 1–2 — Visão / Câmara | 0–35% | Introdução com as 4 imagens oficiais (acima). A montagem 3D peça a peça continua a existir por trás e reaparece montada no portal |
 | 3 — Luz | 35–55% | A câmara viaja até ao tripé; tripés levantam-se do chão, abrem as pernas, colunas sobem; painéis LED encaixam e abrem as abas; softbox expande; cabos são passados; luzes reais acendem |
 | 4 — Estúdio | 55–85% | 14 etapas: paredes, painéis acústicos, revestimentos, fitas LED, logotipo, TV, estantes, cadeiras/sofás, mesa, microfones, acessórios, câmaras, iluminação, mesa de produção, luz final |
 | 5 — Revelação | 85–100% | Dolly-out, título, subtítulo, botões e preço |
@@ -29,6 +47,7 @@ npm run test:e2e     # testes no browser (precisa do servidor a correr)
 
 ### Limitações (transparência)
 
+- A **câmara de introdução** usa as 4 imagens oficiais; a câmara 3D procedural continua a ser usada a partir do portal (voo até ao tripé e estúdio).
 - **Não havia modelos 3D (GLB) nos anexos** — só imagens PNG/WebP, que não têm geometria. Por isso, a câmara, as luzes e o estúdio foram **modelados proceduralmente em Three.js** (primitivas, texturas geradas em canvas com o logotipo real). A montagem é 3D real, com peças individuais, mas o nível de detalhe é de *motion design* estilizado, não fotorrealista como os renders.
 - Para aproximar ao fotorrealismo dos renders, o passo seguinte é encomendar/criar modelos GLB (Blender) com as peças separadas e com os mesmos nomes; o motor de montagem (`Assemble`) mantém-se igual — basta trocar a geometria em `src/scene/models/`.
 - O **logotipo** foi recortado do anexo `PodCast-Parte1` (sem redesenho), com fundo removido. A resolução de origem é limitada (~1160 px); recomenda-se substituir `public/brand/*.png` pelo ficheiro vectorial oficial quando disponível.

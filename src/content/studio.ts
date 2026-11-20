@@ -7,7 +7,7 @@ export type GalleryItem = { src: string; title: string; caption: string; kind: "
 
 export const gallery: GalleryItem[] = [
   { src: "/images/estudio-podcast.webp", title: "Sala de podcast", caption: "Set para duas pessoas, multicâmara e iluminação de estúdio.", kind: "conceito", wide: true },
-  { src: "/images/camera-montada.webp", title: "Equipamento de filmagem", caption: "Captação em 4K com áudio dedicado.", kind: "conceito" },
+  { src: "/images/camera/parte3-montada.webp", title: "Equipamento de filmagem", caption: "Captação em 4K com áudio dedicado.", kind: "conceito" },
   { src: "/images/iluminacao-montada.webp", title: "Iluminação profissional", caption: "Painéis LED, softboxes e ring light.", kind: "conceito" },
   { src: "/images/estudio-completo.webp", title: "Área de gravação e recepção", caption: "Espaço de gravação e área de recepção/showcase.", kind: "conceito", wide: true },
   { src: "/images/recepcao-showcase.webp", title: "Área de recepção", caption: "Acolhimento de convidados e identidade da marca.", kind: "conceito" },
