@@ -82,3 +82,16 @@ test("montagem magnética: blocos ordenados, contíguos e mapeamento scroll↔ce
     assert.ok(Math.abs(sceneToScroll(p) - t) < 1e-9, "inverso exacto");
   }
 });
+
+test("fase LUZ: 6 sub-fases contíguas, dentro da fase e depois da câmara", async () => {
+  const { LIGHT_PHASES: LP, PHASES: P, ASSEMBLY, lightAt, scrollToScene } = await import("@/animation/phases");
+  const seq = [LP.disassembled, LP.activation, LP.supports, LP.equipment, LP.power, LP.reveal];
+  assert.equal(seq[0][0], P.lights.start);
+  assert.equal(seq[seq.length - 1][1], P.lights.end);
+  for (let i = 1; i < seq.length; i++) assert.ok(Math.abs(seq[i][0] - seq[i - 1][1]) < 1e-9);
+  assert.ok(P.lights.start >= ASSEMBLY.reveal[1], "a luz começa depois de a câmara estar montada");
+  assert.equal(lightAt(0), 0.4);
+  assert.equal(lightAt(1), 0.55);
+  // a câmara mantém o mesmo comprimento de scroll (0.407 do banner de 910vh ≈ 370vh)
+  assert.ok(Math.abs(scrollToScene(0.407) - 0.4) < 1e-9);
+});

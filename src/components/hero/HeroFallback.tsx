@@ -16,8 +16,8 @@ import { openQuote } from "@/components/forms/quoteBus";
 const FRAMES = [
   // Sem WebGL não há montagem 3D: mostra-se a câmara oficial (uma única imagem, sem slides)
   { src: "/images/camera/parte3-montada.webp", at: [0, 0.42] },
-  { src: "/images/iluminacao-kit.webp", at: [0.4, 0.47] },
-  { src: "/images/iluminacao-montada.webp", at: [0.44, 0.58] },
+  { src: "/images/iluminacao/parte1-desmontada.webp", at: [0.4, 0.48] },
+  { src: "/images/iluminacao/parte2-montada.webp", at: [0.47, 0.58] },
   { src: "/images/estudio-kit.webp", at: [0.55, 0.66] },
   { src: "/images/estudio-montagem.webp", at: [0.63, 0.76] },
   { src: "/images/estudio-podcast.webp", at: [0.72, 0.88] },

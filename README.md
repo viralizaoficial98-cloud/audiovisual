@@ -32,11 +32,29 @@ chão (pousada, altura de repouso calculada pela caixa envolvente) → vibraçã
 
 As superfícies visíveis usam **texturas recortadas das 4 imagens oficiais** (`scripts/extract-camera-textures.py` → `public/textures/camera/`): painel VIRALIZA/4K, microfone com logotipo, objectiva (AF/MF, STABILIZER), vidro da lente, placa, sensor, monitor, cartões, bateria e ventoinha. As fotografias já não são usadas como slides; continuam nas secções do site e no fallback sem WebGL (uma imagem única).
 
+### Fase LUZ: montagem robótica magnética do kit de iluminação (3D real)
+
+Módulos em `src/scene/models/lighting/`: `kitLayout.ts` (posições finais = Luzes-Parte2, flat-lay = Luzes-Parte1, janelas), `equipment.tsx` (modelos), `LightingKit.tsx` (montagem com `MagneticPart`) e `effects.tsx` (luz de trabalho, reflexos, onda magnética, acendimento, parede de fundo). ~30 peças independentes:
+
+| Fase LUZ | Progresso de cena | O que acontece |
+|---|---|---|
+| F1 0–15% | 0,400–0,4225 | Tudo desmontado no chão (flat-lay); reflexo dourado a percorrer as peças; a câmara chega ao tripé |
+| F2 15–30% | 0,4225–0,445 | Onda de energia magnética; adaptadores, rodas, fontes e restantes peças levitam |
+| F3 30–50% | 0,445–0,475 | Tripés chegam de pé, abrem as pernas (o tripé desce até os pés tocarem o chão), colunas telescópicas sobem; rodas encaixam no C-stand; adaptadores rodam e encaixam; girafa sobe e eleva o braço; mala e saco de areia |
+| F4 50–75% | 0,475–0,5125 | Painéis LED descem nos espigões, abas encaixam e abrem; softbox abre o octógono e sobe para a girafa; difusor encaixa; ring light roda e encaixa; telemóvel, controlador, comando, fontes; cabos desenhados até às ligações |
+| F5 75–90% | 0,5125–0,535 | Acendimento sequencial (LED esq., LED dir., ring light, softbox) com luzes reais, reflexos nas estruturas, parede com moldura LED e logotipo sobe e acende |
+| F6 90–100% | 0,535–0,55 | Afastamento da câmara para a composição de Luzes-Parte2 + pausa (5% do scroll) |
+
+Durante a fase LUZ os painéis apontam para o centro do kit (faces visíveis, como na referência); quando o estúdio começa a ser construído rodam para o set de podcast e a parede de fundo recolhe para o chão.
+
+O scroll está dividido em troços (`KNOTS` em `phases.ts`): a câmara mantém exactamente o mesmo comprimento de scroll (≈ 370vh), a fase LUZ recebe ~25% e a sua cena final fica parada 5% do scroll. A timeline GSAP tem de durar exactamente 1 — há um aviso em desenvolvimento se algum tween ultrapassar o fim.
+
 ### Sequência completa
 
 | Fase | Progresso de cena | O que acontece |
 |---|---|---|
 | 1–2 — Visão / Câmara | 0–40% | Montagem magnética da câmara (acima) |
+| 3 — Luz | 40–55% | Montagem magnética do kit de iluminação (acima) |
 | 3 — Luz | 35–55% | A câmara viaja até ao tripé; tripés levantam-se do chão, abrem as pernas, colunas sobem; painéis LED encaixam e abrem as abas; softbox expande; cabos são passados; luzes reais acendem |
 | 4 — Estúdio | 55–85% | 14 etapas: paredes, painéis acústicos, revestimentos, fitas LED, logotipo, TV, estantes, cadeiras/sofás, mesa, microfones, acessórios, câmaras, iluminação, mesa de produção, luz final |
 | 5 — Revelação | 85–100% | Dolly-out, título, subtítulo, botões e preço |
@@ -48,6 +66,7 @@ As superfícies visíveis usam **texturas recortadas das 4 imagens oficiais** (`
 
 ### Limitações (transparência)
 
+- Kit de iluminação: geometria 3D coerente com as imagens + texturas recortadas da imagem oficial (mala, controlador, saco de areia, base do ring light). A softbox aponta para o set de podcast (vemos o lado de trás e não o difusor de frente como em Luzes-Parte2), não há plantas na fase LUZ e o render é mais escuro e menos fotorrealista do que a imagem de referência.
 - A câmara é **3D procedural** revestida com texturas das fotografias oficiais. Para fotorrealismo total (detalhes finos, cabos, parafusos reais, materiais PBR) seria necessário um modelo GLB modelado à mão (Blender) com as mesmas peças separadas — o motor `MagneticPart` aceita-o sem alterações.
 - **Não havia modelos 3D (GLB) nos anexos** — só imagens PNG/WebP, que não têm geometria. Por isso, a câmara, as luzes e o estúdio foram **modelados proceduralmente em Three.js** (primitivas, texturas geradas em canvas com o logotipo real). A montagem é 3D real, com peças individuais, mas o nível de detalhe é de *motion design* estilizado, não fotorrealista como os renders.
 - Para aproximar ao fotorrealismo dos renders, o passo seguinte é encomendar/criar modelos GLB (Blender) com as peças separadas e com os mesmos nomes; o motor de montagem (`Assemble`) mantém-se igual — basta trocar a geometria em `src/scene/models/`.

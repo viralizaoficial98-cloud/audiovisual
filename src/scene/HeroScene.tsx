@@ -12,7 +12,7 @@ import { SceneAssetsProvider } from "./context";
 import { CameraRig } from "./CameraRig";
 import { Atmosphere, Floor, SceneLighting } from "./Environment";
 import { CinemaCamera } from "./models/CinemaCamera";
-import { LightingKit } from "./models/LightingKit";
+import { LightingKit } from "./models/lighting/LightingKit";
 import { Studio } from "./models/Studio";
 
 type Props = {

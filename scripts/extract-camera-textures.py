@@ -63,3 +63,20 @@ save(quad(p1, [(1132, 603), (1112, 758), (1392, 768), (1405, 612)], (768, 432)),
 save(p1.crop((1326, 806, 1418, 926)), "sd-card.webp", (184, 240))
 save(p1.crop((40, 708, 226, 890)), "battery.webp", (372, 364))
 save(p1.crop((398, 778, 548, 912)), "fan.webp", (300, 268))
+
+# ---------------- Kit de iluminação (Luzes-Parte2, imagem oficial do kit montado) ----------------
+L2 = Image.open(os.path.join(ROOT, "public", "images", "iluminacao", "parte2-montada.webp")).convert("RGB")
+OUT_L = os.path.join(ROOT, "public", "textures", "lighting")
+os.makedirs(OUT_L, exist_ok=True)
+
+
+def save_l(img, name, size):
+    img = img.resize(size, Image.LANCZOS)
+    img.save(os.path.join(OUT_L, name), quality=88, method=6)
+    print("lighting/" + name, img.size)
+
+
+save_l(quad(L2, [(490, 742), (492, 940), (868, 936), (868, 742)], (760, 400)), "case-front.webp", (760, 400))
+save_l(quad(L2, [(576, 640), (576, 708), (796, 708), (796, 640)], (440, 136)), "controller.webp", (440, 136))
+save_l(quad(L2, [(1124, 772), (1124, 896), (1278, 896), (1278, 772)], (308, 248)), "sandbag.webp", (308, 248))
+save_l(quad(L2, [(390, 596), (390, 634), (458, 634), (458, 596)], (272, 152)), "ring-base.webp", (272, 152))

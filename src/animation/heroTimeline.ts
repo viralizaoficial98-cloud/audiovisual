@@ -38,6 +38,9 @@ function phaseOut(tl: gsap.core.Timeline, root: HTMLElement, phase: string, [pa,
 
 export function buildHeroTimeline(section: HTMLElement, stage: HTMLElement, opts: { scrub: number }) {
   gsap.registerPlugin(ScrollTrigger);
+  // Em dispositivos lentos (frames > 500 ms) o "lag smoothing" faria o scrub avançar só 33 ms
+  // por frame e a animação ficaria a arrastar-se atrás do scroll. Sem ele, acompanha o scroll.
+  gsap.ticker.lagSmoothing(0);
 
   const state = { progress: 0 };
   const tl = gsap.timeline({
@@ -77,11 +80,16 @@ export function buildHeroTimeline(section: HTMLElement, stage: HTMLElement, opts
   tl.fromTo(
     q(stage, "[data-reveal-cta]"),
     { autoAlpha: 0, y: 24 },
-    { autoAlpha: 1, y: 0, duration: 0.05, stagger: 0.012, ease: "power2.out" },
-    S(T.reveal.in[1] - 0.04),
+    { autoAlpha: 1, y: 0, duration: 0.035, stagger: 0.008, ease: "power2.out" },
+    S(T.reveal.in[1] - 0.06),
   );
   // pausa final: mantém o estado completo antes de libertar o scroll
   tl.to({}, { duration: 0.0001 }, 1);
+  // A timeline TEM de durar exactamente 1 (= 100% do scroll). Se algum tween passar do fim,
+  // o progresso deixa de corresponder ao scroll — avisar em desenvolvimento.
+  if (process.env.NODE_ENV !== "production" && tl.duration() > 1.0001) {
+    console.warn(`[heroTimeline] duração ${tl.duration().toFixed(4)} > 1 — o progresso vai desalinhar do scroll`);
+  }
 
   return tl;
 }

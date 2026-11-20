@@ -102,7 +102,7 @@ export function CinematicHero() {
       ref={section}
       id="inicio"
       aria-label="Introdução cinematográfica: montagem do universo audiovisual Viraliza"
-      className="relative h-[600svh] md:h-[740vh]"
+      className="relative h-[735svh] md:h-[910vh]"
     >
       <div ref={stage} className="sticky top-0 h-[100svh] w-full overflow-hidden bg-ink">
         <div className="absolute inset-0" aria-hidden>

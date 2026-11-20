@@ -19,16 +19,33 @@ export const PHASES = {
 
 export type PhaseKey = keyof typeof PHASES;
 
-/** Sub-janelas da fase 3 (sistema de iluminação). */
+/**
+ * FASE 3 — MONTAGEM MAGNÉTICA DO KIT DE ILUMINAÇÃO (progresso de cena 0.40 → 0.55).
+ * Sub-fases pedidas: desmontagem total, activação magnética, suportes, equipamentos,
+ * activação da iluminação e revelação (seguida de uma pausa para apreciar o resultado).
+ */
+export const LIGHT_PHASES = {
+  disassembled: [0.4, 0.4225] as const,
+  activation: [0.4225, 0.445] as const,
+  supports: [0.445, 0.475] as const,
+  equipment: [0.475, 0.5125] as const,
+  power: [0.5125, 0.535] as const,
+  reveal: [0.535, 0.55] as const,
+};
+
+/** Converte uma fracção (0..1) da fase LUZ em progresso de cena. */
+export const lightAt = (f: number) => 0.4 + 0.15 * f;
+
+/** Janelas usadas por outros módulos (câmara a caminho do tripé, cabos, acendimento). */
 export const LIGHTS = {
   cameraMove: [0.4, 0.48] as const,
-  standUp: [0.405, 0.455] as const,
-  legsOpen: [0.425, 0.475] as const,
-  columnRise: [0.44, 0.49] as const,
-  heads: [0.455, 0.505] as const,
-  softboxExpand: [0.465, 0.515] as const,
-  cables: [0.48, 0.53] as const,
-  powerOn: [0.505, 0.55] as const,
+  standUp: [0.445, 0.475] as const,
+  legsOpen: [0.457, 0.469] as const,
+  columnRise: [0.463, 0.4735] as const,
+  heads: [0.475, 0.5125] as const,
+  softboxExpand: [0.478, 0.49] as const,
+  cables: [0.502, 0.5125] as const,
+  powerOn: [0.5125, 0.535] as const,
 };
 
 /**
@@ -57,7 +74,7 @@ export const STUDIO_STEPS = {
 export const OVERLAY_TIMING = {
   intro: { out: [0.07, 0.11] },
   camera: { in: [0.3, 0.34], out: [0.385, 0.415] },
-  lights: { in: [0.43, 0.47], out: [0.535, 0.57] },
+  lights: { in: [0.505, 0.518], out: [0.534, 0.543] },
   studio: { in: [0.615, 0.655], out: [0.8, 0.84] },
   reveal: { in: [0.885, 0.95] },
 } as const;
@@ -93,19 +110,31 @@ export const ASSEMBLY = {
 };
 
 /**
- * Mapeamento scroll → cena. A montagem da câmara (cena 0 → 0.40) recebe 50% do
+ * Mapeamento scroll → cena. A montagem da câmara (cena 0 → 0.40) recebe 40,7% do
  * scroll; o resto da narrativa mantém todas as janelas originais. Linear por troços,
  * contínuo e monótono, portanto reversível.
  */
-const INTRO_SCENE = 0.4;
-const INTRO_SCROLL = 0.5;
+/**
+ * Troços (scroll, cena). A câmara mantém 40,7% do scroll (≈ os mesmos 370vh de antes);
+ * a fase LUZ recebe ~25% e a sua cena final fica parada durante 5% (pausa de apreciação).
+ */
+const KNOTS: Array<[number, number]> = [
+  [0, 0],
+  [0.407, 0.4],
+  [0.66, 0.545],
+  [0.71, 0.55],
+  [1, 1],
+];
 
-export function scrollToScene(t: number) {
+function piecewise(t: number, from: 0 | 1, to: 0 | 1) {
   const c = t < 0 ? 0 : t > 1 ? 1 : t;
-  return c <= INTRO_SCROLL ? (c / INTRO_SCROLL) * INTRO_SCENE : INTRO_SCENE + ((c - INTRO_SCROLL) / (1 - INTRO_SCROLL)) * (1 - INTRO_SCENE);
+  for (let i = 1; i < KNOTS.length; i++) {
+    const a = KNOTS[i - 1];
+    const b = KNOTS[i];
+    if (c <= b[from]) return a[to] + ((c - a[from]) / (b[from] - a[from])) * (b[to] - a[to]);
+  }
+  return 1;
 }
 
-export function sceneToScroll(p: number) {
-  const c = p < 0 ? 0 : p > 1 ? 1 : p;
-  return c <= INTRO_SCENE ? (c / INTRO_SCENE) * INTRO_SCROLL : INTRO_SCROLL + ((c - INTRO_SCENE) / (1 - INTRO_SCENE)) * (1 - INTRO_SCROLL);
-}
+export const scrollToScene = (t: number) => piecewise(t, 0, 1);
+export const sceneToScroll = (p: number) => piecewise(p, 1, 0);

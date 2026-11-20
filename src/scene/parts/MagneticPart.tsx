@@ -30,6 +30,13 @@ export type MagneticSpec = {
   lie?: Vec3;
   /** Deslocamento da posição de espera (constelação) relativamente à posição final. */
   hover: Vec3;
+  /**
+   * Posição absoluta de levitação (no referencial do pai). Quando definida substitui `hover`
+   * — útil para peças que levitam por cima do sítio onde estavam pousadas (kit de iluminação).
+   */
+  hoverAbs?: Vec3;
+  /** Altura do centro quando pousada (sobrepõe o cálculo automático — peças que mudam de forma). */
+  restY?: number;
   /** Rotação na constelação (euler, rad). */
   hoverRot?: Vec3;
   lift: Win;
@@ -159,13 +166,15 @@ export function MagneticPart({ children, spec, name }: { children: ReactNode; sp
       .multiply(_q.setFromAxisAngle(AX.z, lz));
     let minY = Infinity;
     for (const p of corners) minY = Math.min(minY, _v.copy(p).sub(g.c).applyQuaternion(g.qFloor).y);
-    g.floorPos.set(spec.floor[0], ctx.floorY - minY + 0.001, spec.floor[1]);
+    g.floorPos.set(spec.floor[0], spec.restY ?? ctx.floorY - minY + 0.001, spec.floor[1]);
 
     // 3) constelação, ponto de inserção e direcções
-    g.hoverPos.copy(g.c).add(_v.set(...spec.hover));
+    if (spec.hoverAbs) g.hoverPos.set(...spec.hoverAbs);
+    else g.hoverPos.copy(g.c).add(_v.set(...spec.hover));
     g.qHover.setFromEuler(_e.set(...(spec.hoverRot ?? [0, 0, 0])));
     g.staged.copy(g.c).add(_v.set(...(spec.staging ?? [0, 0, 0])));
     if (spec.staging) g.insert.set(...spec.staging).normalize();
+    else if (spec.hoverAbs) g.insert.copy(g.hoverPos).sub(g.c).normalize();
     else g.insert.set(...spec.hover).normalize();
     g.side.crossVectors(g.insert, AX.y);
     if (g.side.lengthSq() < 1e-4) g.side.set(1, 0, 0);
