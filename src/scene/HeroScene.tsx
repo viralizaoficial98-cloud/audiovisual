@@ -1,8 +1,22 @@
 "use client";
 
-import { Suspense, startTransition, useEffect, useRef, useState } from "react";
+import {
+  Suspense,
+  memo,
+  startTransition,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Bloom, EffectComposer, ToneMapping, Vignette } from "@react-three/postprocessing";
+import {
+  Bloom,
+  EffectComposer,
+  ToneMapping,
+  Vignette,
+} from "@react-three/postprocessing";
 import { ToneMappingMode } from "postprocessing";
 import * as THREE from "three";
 import type { QualityTier } from "@/lib/quality";
@@ -54,31 +68,27 @@ export default function HeroScene({ tier, active, onReady }: Props) {
   const post = tier !== "low";
   // Telemóveis/tablets: desenha só quando o scroll muda (+ atmosfera a 15 fps) — menos GPU,
   // menos bateria e menos aquecimento. O desktop mantém o ciclo contínuo.
-  const [touch] = useState(() => typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches);
+  const [touch] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      window.matchMedia("(pointer: coarse)").matches,
+  );
   const [stage, setStage] = useState(0);
   const [mounted, setMounted] = useState(-1);
-
-  return (
-    <Canvas
-      frameloop={!active ? "never" : touch ? "demand" : "always"}
-      dpr={DPR[tier][1]}
-      shadows={tier === "high" ? "soft" : false}
-      camera={{ fov: 38, near: 0.03, far: 80, position: [2.2, 1.64, 3.9] }}
-      gl={{ antialias: !post, powerPreference: "high-performance", alpha: false, stencil: false }}
-      onCreated={({ gl, scene }) => {
-        gl.toneMapping = THREE.ACESFilmicToneMapping;
-        gl.toneMappingExposure = 1.05;
-        // diagnóstico de desempenho (?perf): expõe o renderer para medir draw calls/programas
-        if (window.location.search.includes("perf")) (window as unknown as { __viralizaGL?: unknown }).__viralizaGL = { gl, scene };
-      }}
-      aria-hidden
-    >
-      <AdaptiveResolution range={DPR[tier]} touch={touch} />
+  const requestStage = useCallback(
+    (st: number) => startTransition(() => setStage((cur) => Math.max(cur, st))),
+    [],
+  );
+  // O conteúdo da cena é memorizado: entrar/sair do banner (`active`) só liga/desliga o ciclo
+  // de render — não volta a renderizar a árvore (antes, cada regresso ao banner recriava o
+  // mapa de ambiente do drei sem libertar o anterior: fuga de memória GPU).
+  const content = useMemo(
+    () => (
       <AnimationDriver tier={tier}>
         <Suspense fallback={null}>
           <SceneAssetsProvider>
             <CameraRig parallax={tier !== "low"} />
-            <SceneLighting />
+            <StableLighting />
             <Floor />
             <Atmosphere />
             <CinemaCamera />
@@ -95,24 +105,78 @@ export default function HeroScene({ tier, active, onReady }: Props) {
                 <Mounted stage={2} onMounted={setMounted} />
               </Suspense>
             )}
-            <Preparer mounted={mounted} post={post} onReady={onReady} requestStage={(s) => startTransition(() => setStage((cur) => Math.max(cur, s)))} />
-            {touch && active && <OnDemandInvalidator />}
+            <Preparer
+              mounted={mounted}
+              post={post}
+              onReady={onReady}
+              requestStage={requestStage}
+            />
           </SceneAssetsProvider>
         </Suspense>
         {post && (
-          <EffectComposer multisampling={tier === "high" ? 4 : 0} enableNormalPass={false}>
-            <Bloom mipmapBlur intensity={0.75} luminanceThreshold={0.95} luminanceSmoothing={0.25} radius={0.7} />
+          <EffectComposer
+            multisampling={tier === "high" ? 4 : 0}
+            enableNormalPass={false}
+          >
+            <Bloom
+              mipmapBlur
+              intensity={0.75}
+              luminanceThreshold={0.95}
+              luminanceSmoothing={0.25}
+              radius={0.7}
+            />
             <Vignette offset={0.28} darkness={0.72} />
             <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
           </EffectComposer>
         )}
       </AnimationDriver>
+    ),
+    [tier, post, stage, mounted, onReady, requestStage],
+  );
+
+  return (
+    <Canvas
+      frameloop={!active ? "never" : touch ? "demand" : "always"}
+      dpr={DPR[tier][1]}
+      shadows={tier === "high" ? "soft" : false}
+      camera={{ fov: 38, near: 0.03, far: 80, position: [2.2, 1.64, 3.9] }}
+      gl={{
+        antialias: !post,
+        powerPreference: "high-performance",
+        alpha: false,
+        stencil: false,
+      }}
+      onCreated={({ gl, scene }) => {
+        gl.toneMapping = THREE.ACESFilmicToneMapping;
+        gl.toneMappingExposure = 1.05;
+        // diagnóstico de desempenho (?perf): expõe o renderer para medir draw calls/programas
+        if (window.location.search.includes("perf"))
+          (window as unknown as { __viralizaGL?: unknown }).__viralizaGL = {
+            gl,
+            scene,
+          };
+      }}
+      aria-hidden
+    >
+      <AdaptiveResolution range={DPR[tier]} touch={touch} />
+      {content}
+      {touch && active && <OnDemandInvalidator />}
     </Canvas>
   );
 }
 
+/** Luzes + mapa de ambiente (drei <Environment>): sem props, nunca precisa de voltar a
+ *  renderizar — e cada re-render recriaria o mapa de ambiente sem libertar o anterior. */
+const StableLighting = memo(SceneLighting);
+
 /** Marca um estágio como montado (o Suspense do estágio resolveu e as peças existem). */
-function Mounted({ stage, onMounted }: { stage: number; onMounted: (s: number) => void }) {
+function Mounted({
+  stage,
+  onMounted,
+}: {
+  stage: number;
+  onMounted: (s: number) => void;
+}) {
   const driver = useDriver();
   useEffect(() => {
     // as peças acabadas de montar ficam já no estado do scroll actual
@@ -124,10 +188,12 @@ function Mounted({ stage, onMounted }: { stage: number; onMounted: (s: number) =
 
 const idle = (timeout = 400) =>
   new Promise<void>((resolve) => {
-    if ("requestIdleCallback" in window) window.requestIdleCallback(() => resolve(), { timeout });
+    if ("requestIdleCallback" in window)
+      window.requestIdleCallback(() => resolve(), { timeout });
     else setTimeout(resolve, 60);
   });
-const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
+const nextFrame = () =>
+  new Promise<void>((r) => requestAnimationFrame(() => r()));
 /** Espera que o scroll acalme (sem mudanças de progresso durante ~150 ms), no máximo `max` ms:
  *  o trabalho de preparação evita competir com um gesto em curso. */
 const calm = (max = 1200) =>
@@ -153,7 +219,17 @@ const calm = (max = 1200) =>
  *  - estágios seguintes: em tempo ocioso, prepara shaders, texturas e geometria de cada fase
  *    (no estado de luzes dessa fase) antes de o utilizador lá chegar.
  */
-function Preparer({ mounted, post, onReady, requestStage }: { mounted: number; post: boolean; onReady?: () => void; requestStage: (s: number) => void }) {
+function Preparer({
+  mounted,
+  post,
+  onReady,
+  requestStage,
+}: {
+  mounted: number;
+  post: boolean;
+  onReady?: () => void;
+  requestStage: (s: number) => void;
+}) {
   const gl = useThree((s) => s.gl);
   const scene = useThree((s) => s.scene);
   const camera = useThree((s) => s.camera);
@@ -200,7 +276,10 @@ function Preparer({ mounted, post, onReady, requestStage }: { mounted: number; p
         gl.setRenderTarget(prev);
       }
     };
-    const compile = (p: number) => at(p, () => withTarget(() => gl.compileAsync(scene, camera)).catch(() => undefined));
+    const compile = (p: number) =>
+      at(p, () =>
+        withTarget(() => gl.compileAsync(scene, camera)).catch(() => undefined),
+      );
     /** Desenho de aquecimento (sem culling): envia geometria e texturas para a GPU e inicializa
      *  os uniforms — o custo do "primeiro frame" de cada fase sai do scroll. Com pós-processamento
      *  vai para um render target de 4×4 px; sem ele vai para o ecrã e é logo substituído pelo
@@ -266,7 +345,17 @@ function Preparer({ mounted, post, onReady, requestStage }: { mounted: number; p
     return () => {
       cancelled = true;
     };
-  }, [mounted, post, driver, gl, scene, camera, invalidate, onReady, requestStage]);
+  }, [
+    mounted,
+    post,
+    driver,
+    gl,
+    scene,
+    camera,
+    invalidate,
+    onReady,
+    requestStage,
+  ]);
 
   return null;
 }
@@ -277,9 +366,24 @@ function Preparer({ mounted, post, onReady, requestStage }: { mounted: number; p
  * devicePixelRatio em degraus. A mudança só é aplicada quando o scroll pára, para
  * nunca redimensionar o canvas a meio de um gesto (isso causava soluços).
  */
-function AdaptiveResolution({ range: [min, max], touch }: { range: [number, number]; touch: boolean }) {
+function AdaptiveResolution({
+  range: [min, max],
+  touch,
+}: {
+  range: [number, number];
+  touch: boolean;
+}) {
   const setDpr = useThree((s) => s.setDpr);
-  const st = useRef({ cur: max, lastP: -1, wasMoving: false, lastMove: 0, samples: [] as number[], pending: 0, ups: 0, cooldown: 0 });
+  const st = useRef({
+    cur: max,
+    lastP: -1,
+    wasMoving: false,
+    lastMove: 0,
+    samples: [] as number[],
+    pending: 0,
+    ups: 0,
+    cooldown: 0,
+  });
   // orçamento por frame: ~50 fps no desktop, ~36 fps em telemóveis
   const budget = touch ? 1 / 36 : 1 / 50;
 
@@ -296,8 +400,10 @@ function AdaptiveResolution({ range: [min, max], touch }: { range: [number, numb
         const sorted = s.samples.sort((a, b) => a - b);
         const typical = sorted[Math.floor(sorted.length * 0.6)];
         s.samples = [];
-        if (typical > budget * 1.3 && s.cur > min) s.pending = Math.max(min, +(s.cur - 0.2).toFixed(2));
-        else if (typical < budget * 0.6 && s.cur < max && s.ups < 2) s.pending = Math.min(max, +(s.cur + 0.15).toFixed(2));
+        if (typical > budget * 1.3 && s.cur > min)
+          s.pending = Math.max(min, +(s.cur - 0.2).toFixed(2));
+        else if (typical < budget * 0.6 && s.cur < max && s.ups < 2)
+          s.pending = Math.min(max, +(s.cur + 0.15).toFixed(2));
       }
     }
     s.wasMoving = moving;

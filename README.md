@@ -125,7 +125,24 @@ Durante a montagem, as peças que esperam a meio ou à frente da sala sobem para
 - *Recursos*: removida uma textura de 88 KB que nenhuma peça usava; logótipos da cena em WebP (247 KB → 79 KB); texturas fotográficas da câmara a meia resolução em ecrãs tácteis/nível `low` (438 KB → 146 KB); peças magnéticas libertam os seus recursos GPU ao desmontar.
 - Diagnóstico: `?perf` expõe o renderer em `window.__viralizaGL`; `window.__viralizaHero.prepared` indica as fases já preparadas.
 
-_(Métricas antes/depois: ver secção seguinte, preenchida após a medição.)_
+**Métricas antes → depois** (medidas, não estimadas). Ambiente: Chromium headless **sem GPU** (WebGL por software/SwiftShader, 4 núcleos → nível `low`), build de produção local. O SwiftShader compila shaders e desenha muitíssimo mais devagar do que uma GPU real, por isso os tempos de cena e os FPS absolutos **não representam dispositivos reais** — servem para comparar antes/depois no mesmo ambiente. Scripts de medição: protocolo CDP (marcos de pintura, long tasks, bytes por tipo, chamadas WebGL contadas por instrumentação).
+
+| Métrica | Antes | Depois |
+|---|---|---|
+| 1.º conteúdo visual (FCP/LCP), desktop | 184 ms — ecrã preto do loader | 144–180 ms — imagem da cena |
+| 1.º conteúdo visual, telemóvel em "Slow 4G" + CPU 4× | 1.07 s — ecrã preto | 0.96 s — imagem da cena |
+| Loader bloqueante no ecrã, desktop / telemóvel | 10.4 s / 8.5 s | nenhum (indicador discreto) |
+| Cena 3D pronta, telemóvel / telemóvel "Slow 4G" | 8.5 s / 17.8 s | 5.4 s / 11.9 s |
+| Programas de shader compilados até ao 1.º frame 3D | 55 | 18 |
+| Long tasks até à cena pronta (soma), telemóvel | 10.2 s | 6.2 s |
+| Bytes transferidos (página inicial completa) | 1448 KB | 965 KB (imagens 785 → 301 KB) |
+| Shaders compilados durante o scroll, após preparação | 2–3 por fase + compilações a cada entrada de fase | **0** (teste e2e) |
+| Pior frame de JS no estúdio (1.ª passagem), telemóvel | 65 ms | 14 ms |
+| Pior long task no estúdio (1.ª passagem), telemóvel | 1564 ms | 326 ms |
+| Geometrias GPU após 8 saídas/regressos ao banner | +18 (fuga pré-existente, medida antes da correcção) | +0 |
+
+Limitações honestas: (1) não houve acesso a dispositivos reais nem ao site publicado a partir deste ambiente — FPS reais, aquecimento e Lighthouse em produção ficam por medir num telemóvel/PC reais (sugestão: Chrome DevTools → Performance com "CPU 4× slowdown" e Lighthouse mobile em `https://audiovisual.viralizahost.com/`); (2) se o visitante fizer scroll até ao estúdio *no próprio instante* em que a cena aparece, antes de a preparação em segundo plano terminar, alguns shaders ainda são compilados nesse momento (como antes) — numa GPU real a preparação demora tipicamente 1–2 s, aqui demora dezenas de segundos por causa do SwiftShader.
+
 
 ### Mobile (iOS Safari / Chrome Android)
 
