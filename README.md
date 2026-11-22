@@ -1,8 +1,8 @@
 # VIRALIZA — Audiovisual & Podcast
 
-Website institucional e comercial com **banner cinematográfico 3D controlado pelo scroll**: a câmara Viraliza é montada peça a peça, segue-se o sistema de iluminação e a construção da sala de podcast, até à revelação do estúdio completo. Depois, o scroll liberta-se para as secções comerciais.
+Website institucional e comercial com **banner cinematográfico 3D** (altura de um ecrã): a câmara Viraliza é montada peça a peça, segue-se o sistema de iluminação e a construção da sala de podcast, até à revelação do estúdio completo. A sequência é reproduzida no tempo enquanto o banner está visível; o scroll da página é sempre nativo e livre.
 
-**Stack:** Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS 4 · GSAP + ScrollTrigger · Three.js · React Three Fiber · Drei · postprocessing.
+**Stack:** Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS 4 · GSAP · Three.js · React Three Fiber · Drei · postprocessing.
 
 ```bash
 npm install
@@ -16,7 +16,7 @@ npm run test:e2e     # testes no browser (precisa do servidor a correr)
 
 ### Introdução: montagem magnética da câmara (3D real)
 
-Uma **única câmara 3D** (`src/scene/models/CinemaCamera.tsx`) com ~35 peças independentes. Cada peça usa `MagneticPart` (`src/scene/parts/MagneticPart.tsx`) e percorre, como função pura do scroll:
+Uma **única câmara 3D** (`src/scene/models/CinemaCamera.tsx`) com ~35 peças independentes. Cada peça usa `MagneticPart` (`src/scene/parts/MagneticPart.tsx`) e percorre, como função pura do progresso da sequência:
 
 chão (pousada, altura de repouso calculada pela caixa envolvente) → vibração → levitação → constelação → atracção em curva Bézier com orientação progressiva e oscilação amortecida → inserção ao longo do eixo de encaixe → acoplamento (ex.: conjunto óptico desliza para o corpo) → micro-impacto com faísca dourada. Linhas-guia douradas ligam cada peça ao seu destino durante o voo.
 
@@ -47,7 +47,7 @@ Módulos em `src/scene/models/lighting/`: `kitLayout.ts` (posições finais = Lu
 
 Durante a fase LUZ os painéis apontam para o centro do kit (faces visíveis, como na referência); quando o estúdio começa a ser construído rodam para o set de podcast e a parede de fundo recolhe para o chão.
 
-O scroll está dividido em troços (`KNOTS` em `phases.ts`, banner de 1120vh / 905svh no mobile): câmara ≈ 370vh, LUZ ≈ 230vh + 45vh de pausa, estúdio ≈ 360vh, banner final ≈ 114vh. Os valores em vh da câmara e da LUZ são os mesmos das versões aprovadas. A timeline GSAP tem de durar exactamente 1 — há um aviso em desenvolvimento se algum tween ultrapassar o fim.
+A sequência está dividida em troços (`KNOTS` em `phases.ts`, agora fracções do tempo — `HERO_DURATION_S` = 26 s): câmara ≈ 8.6 s, LUZ ≈ 5.3 s + ≈ 1 s de pausa, estúdio ≈ 8.4 s, revelação ≈ 2.6 s, depois de 2.5 s no título de abertura. As proporções entre fases são as das versões aprovadas (antes medidas em vh de scroll). A timeline GSAP tem de durar exactamente 1 — há um aviso em desenvolvimento se algum tween ultrapassar o fim.
 
 ### Fase ESTÚDIO: montagem robótica magnética da sala de podcast (3D real)
 
@@ -61,7 +61,7 @@ Módulo `src/scene/models/studio/`: `studioLayout.ts` (planta = imagem oficial P
 | 50% | 0,725 | Tripés, softboxes, LEDs baixos, calha do tecto, painéis de identidade e ar condicionado; tapete, mesa e cadeirões |
 | 75% | 0,8125 | Braços e microfones, câmara no tripé, mesa de produção e áudio, ecrã, decoração das prateleiras; os LEDs do kit são orientados para o set |
 | 100% | 0,90 | Fitas LED douradas e iluminação final; o logotipo VIRALIZA é a última peça |
-| Banner | 0,90–1 | Brilho dourado no logotipo, aproximação da câmara e estabilização; título e botões; o scroll segue para as secções |
+| Banner | 0,90–1 | Brilho dourado no logotipo, aproximação da câmara e estabilização; título e botões |
 
 Durante a montagem, as peças que esperam a meio ou à frente da sala sobem para uma nuvem alta (y ≥ 2,7 m) para nunca ficarem entre a câmara e o set. O tapete é a única peça que não voa: desenrola-se no lugar. Os focos do kit baixam durante a montagem e voltam ao máximo quando são reorientados para o set.
 
@@ -77,9 +77,9 @@ Durante a montagem, as peças que esperam a meio ou à frente da sala sobem para
 | 4 — Estúdio | 55–85% | 14 etapas: paredes, painéis acústicos, revestimentos, fitas LED, logotipo, TV, estantes, cadeiras/sofás, mesa, microfones, acessórios, câmaras, iluminação, mesa de produção, luz final |
 | 5 — Revelação | 85–100% | Dolly-out, título, subtítulo, botões e preço |
 
-- **Uma timeline GSAP** (`src/animation/heroTimeline.ts`) com `ScrollTrigger` + `scrub` anima o progresso global e os textos. É reversível por construção.
-- **A cena 3D lê o progresso a cada frame** e calcula o estado de cada peça como função pura de `p` (`src/scene/parts/Assemble.tsx`) — scroll para cima produz exactamente o estado inverso.
-- O palco usa `position: sticky` numa secção de ~6 ecrãs de altura: não há pin-spacer, logo não há saltos de layout quando a animação termina.
+- **Uma timeline GSAP em pausa** (`src/animation/heroTimeline.ts`) anima o progresso global e os textos; quem a faz avançar é o **leitor** (`src/animation/heroPlayer.ts`), no tempo — não o scroll.
+- **A cena 3D lê o progresso a cada frame** e calcula o estado de cada peça como função pura de `p` (`src/scene/parts/Assemble.tsx`).
+- O banner é uma secção normal com a altura de um ecrã (`100svh`), sem `sticky`, sem scroll snapping e sem listeners de scroll da animação.
 - **Todas as janelas de tempo** estão em `src/animation/phases.ts`. Os movimentos da câmara virtual estão em `src/scene/CameraRig.tsx`.
 
 ### Limitações (transparência)
@@ -97,7 +97,7 @@ Durante a montagem, as peças que esperam a meio ou à frente da sala sobem para
 - 3 níveis de qualidade detectados automaticamente (`src/lib/quality.ts`; forçar com `?quality=high|medium|low`): resolução, sombras, bloom, chão reflector, cones de luz e densidade de adereços. A detecção usa núcleos/memória, tipo de ecrã e o **nome da GPU** (renderização por software → `low`; GPU integrada Intel/AMD APU → `medium`, sem sombras; GPU dedicada/Apple Silicon → `high`). A sequência de montagem é igual em todos os níveis — só muda o custo de renderização.
 - **Resolução adaptativa** (`AdaptiveResolution` em `HeroScene.tsx`): mede o ritmo real dos frames só enquanto a animação avança e baixa/sobe o devicePixelRatio em degraus; a mudança só é aplicada com o scroll parado (nunca redimensiona o canvas a meio de um gesto).
 - Render pausa quando o banner sai do ecrã; nos ecrãs tácteis só desenha quando o progresso muda.
-- Sem WebGL → sequência de imagens sincronizada com o scroll (fallback 2D assumido). `prefers-reduced-motion` → banner estático, sem WebGL.
+- Sem WebGL → sequência de imagens sincronizada com a sequência (fallback 2D assumido). `prefers-reduced-motion` e telemóveis de baixo desempenho (nível `low` detectado pela capacidade real: núcleos, memória, GPU) → composição estática de qualidade, sem WebGL.
 - No mobile: secção mais curta, FOV adaptado a ecrãs verticais e enquadramento centrado no set de podcast.
 
 ### Carregamento progressivo e fluidez (optimização de desempenho)
@@ -109,8 +109,8 @@ Durante a montagem, as peças que esperam a meio ou à frente da sala sobem para
 | Estágio | O quê | Quando |
 |---|---|---|
 | 0 | câmara + ambiente | logo (é o que se vê no 1.º ecrã) |
-| 1 | kit de iluminação + texturas | em tempo ocioso após o 1.º frame, ou já se o scroll passar p = 0.22 |
-| 2 | estúdio de podcast | em tempo ocioso após o estágio 1, ou já se o scroll passar p = 0.42 |
+| 1 | kit de iluminação + texturas | em tempo ocioso após o 1.º frame, ou já se a sequência passar p = 0.22 |
+| 2 | estúdio de podcast | em tempo ocioso após o estágio 1, ou já se a sequência passar p = 0.42 |
 
 **Porque havia congelamentos na 1.ª visita.** Medido com perfis de CPU (Chrome DevTools Protocol) em contextos novos, cache vazia, CPU normal e 4× mais lenta. Explica porque o problema "desaparecia" depois de percorrer o site: na 2.ª passagem os shaders já estavam compilados (e o navegador guarda-os em cache).
 1. *Shaders compilados a meio do scroll.* O número de luzes visíveis faz parte de cada shader do three.js; ao entrar nas fases LUZ (10 → 17 luzes) e ESTÚDIO (→ 22) todos os materiais precisavam de novas variantes, compiladas no próprio frame. A pré-compilação antiga só cobria o estado "tudo visível" e, com pós-processamento, compilava as variantes do ecrã em vez das do render target.
@@ -163,10 +163,9 @@ Limitações honestas: (1) não houve acesso a dispositivos reais nem ao site pu
 
 ### Mobile (iOS Safari / Chrome Android)
 
-- É a **mesma cena 3D** e a mesma timeline do desktop (não há slides): o toque no ecrã faz scroll e o scroll comanda a montagem, em ambos os sentidos.
+- É a **mesma cena 3D** e a mesma timeline do desktop (não há slides), reproduzida no tempo; o toque no ecrã faz apenas o scroll nativo da página. Em telemóveis: sem pós-processamento, resolução ≤ 1.25×, render ≤ 30 fps (≤ 15 fps enquanto o utilizador faz scroll), 24 partículas.
 - Enquadramento vertical: em ecrãs com proporção < 1 a câmara recua (`CameraRig`, curva `pow(rest, lerp(1.0, 0.12, inRoom))`) para a câmara montada e o kit de luz caberem inteiros; no estúdio o recuo diminui para mostrar o set.
 - GPU/bateria: em dispositivos de toque o Canvas usa `frameloop="demand"` — só renderiza quando o progresso muda (e no máximo ~15 fps em repouso para as animações de idle); partículas a ~30 fps; luzes pontuais reduzidas em retrato; nível de qualidade `low/medium`, resolução adaptativa e texturas da câmara a meia resolução.
-- `ScrollTrigger.config({ ignoreMobileResize: true })`: a barra de endereço do iOS/Android a aparecer/desaparecer não recalcula a timeline (sem saltos).
 - Sem WebGL → sequência de imagens; **"Reduzir movimento" activo no sistema → banner estático** (por desenho). Se no telemóvel aparecer só a imagem fixa, verifique esta definição de acessibilidade.
 - Testado em emulação Chromium (iPhone 13, Pixel 7) com gestos de toque reais via CDP; **não foi testado em dispositivos físicos nem no WebKit do Safari** — FPS e aquecimento reais ainda por medir.
 
