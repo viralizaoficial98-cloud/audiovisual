@@ -3,7 +3,7 @@
 import { createRequire } from "node:module";
 import assert from "node:assert/strict";
 const require = createRequire(import.meta.url);
-const { chromium } = require("playwright");
+const { chromium, devices } = require("playwright");
 
 const URL = process.argv[2] || "http://localhost:3000";
 const results = [];
@@ -34,12 +34,19 @@ async function open(viewport) {
 }
 
 const progress = (page) => page.evaluate(() => window.__viralizaHero.progress);
-const scrollToP = (page, p) =>
-  page.evaluate((p) => {
-    const s = document.getElementById("inicio");
-    window.scrollTo(0, s.offsetTop + window.__viralizaMap.sceneToScroll(p) * (s.offsetHeight - innerHeight));
-  }, p);
+/** Leva a sequência (no tempo) ao ponto de cena p — a página NÃO se move. */
+const seekP = (page, p) => page.evaluate((p) => window.__viralizaPlayer.seek(window.__viralizaMap.sceneToScroll(p)), p);
 const waitP = (page, p) => page.waitForFunction((p) => Math.abs(window.__viralizaHero.progress - p) < 0.003, p, { timeout: 20000 });
+/** Gestos de roda (100 px) até a secção #servicos chegar ao topo do ecrã. */
+async function wheelsToServices(page, max = 60) {
+  let n = 0;
+  while (n < max && (await page.evaluate(() => document.getElementById("servicos").getBoundingClientRect().top)) > 2) {
+    await page.mouse.wheel(0, 100);
+    n++;
+    await page.waitForTimeout(40);
+  }
+  return n;
+}
 
 for (const vp of [
   { name: "desktop", width: 1440, height: 900 },
@@ -48,35 +55,65 @@ for (const vp of [
   const { ctx, page, errors } = await open(vp);
   const tag = `[${vp.name}]`;
 
-  await step(`${tag} abre directamente no banner, câmara desmontada (p=0)`, async () => {
+  await step(`${tag} abre no banner com a câmara desmontada; o título de abertura fica legível`, async () => {
     assert.equal(await page.evaluate(() => window.scrollY), 0);
-    assert.equal(await progress(page), 0);
+    assert.ok((await progress(page)) < 0.02, "a montagem ainda não começou (pausa no título)");
     assert.ok(await page.locator("canvas:not([data-dust])").isVisible());
     // a câmara é montada em 3D: nenhuma fotografia da câmara (slide) no banner
     assert.equal(await page.locator('#inicio img[src*="/images/camera/"]').count(), 0, "sem slides de fotografias da câmara");
     assert.ok(await page.getByText("COMEÇA COM UMA VISÃO.").isVisible());
   });
 
-  await step(`${tag} banner fica fixo durante o scroll (sticky)`, async () => {
-    await scrollToP(page, 0.5);
-    await waitP(page, 0.5);
-    const top = await page.evaluate(() => document.querySelector("#inicio > div").getBoundingClientRect().top);
-    assert.ok(Math.abs(top) < 1, `top=${top}`);
+  await step(`${tag} o banner tem a altura de um ecrã e não é "sticky" (sem scroll-jacking)`, async () => {
+    const r = await page.evaluate(() => {
+      const sec = document.getElementById("inicio");
+      const stage = sec.firstElementChild;
+      return { h: sec.offsetHeight, vh: innerHeight, pos: getComputedStyle(stage).position, snap: getComputedStyle(document.documentElement).scrollSnapType };
+    });
+    assert.ok(r.h <= Math.max(r.vh, 560) + 1, `altura do banner ${r.h}px para um ecrã de ${r.vh}px`);
+    assert.notEqual(r.pos, "sticky");
+    assert.ok(!r.snap || r.snap === "none", "sem scroll snapping");
   });
 
-  await step(`${tag} scroll controla o progresso e é reversível`, async () => {
-    for (const p of [0.2, 0.45, 0.7, 0.95]) {
-      await scrollToP(page, p);
-      await waitP(page, p);
+  await step(`${tag} a animação avança sozinha (no tempo), sem precisar de scroll`, async () => {
+    await page.waitForFunction(() => window.__viralizaHero.progress > 0.05, null, { timeout: 20000 });
+    assert.equal(await page.evaluate(() => window.scrollY), 0, "a página não se moveu");
+  });
+
+  await step(`${tag} um gesto normal de scroll passa logo para a secção seguinte (antes de a animação terminar)`, async () => {
+    assert.ok((await progress(page)) < 0.9, "animação ainda a decorrer");
+    await page.mouse.move(vp.width / 2, vp.height / 2);
+    const n = await wheelsToServices(page);
+    const limit = Math.ceil((vp.height + 260) / 100) + 2; // um ecrã + faixa de transição
+    assert.ok(n <= limit, `${n} gestos de roda (máximo ${limit})`);
+  });
+
+  await step(`${tag} fora do banner a animação pausa; ao voltar ao topo retoma do mesmo ponto`, async () => {
+    await page.waitForTimeout(400);
+    const a = await progress(page);
+    await page.waitForTimeout(1500);
+    const b = await progress(page);
+    assert.ok(Math.abs(b - a) < 1e-6, `pausada fora do ecrã (${a} → ${b})`);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.waitForFunction((b) => window.__viralizaHero.progress > b + 0.003, b, { timeout: 20000 });
+    const c = await progress(page);
+    assert.ok(c - b < 0.2, "retoma do mesmo ponto (sem saltos)");
+  });
+
+  await step(`${tag} scroll rápido e repetido não prende a página nem faz recuar a animação`, async () => {
+    const p0 = await progress(page);
+    for (let i = 0; i < 12; i++) {
+      await page.mouse.wheel(0, i % 2 ? -900 : 900);
+      await page.waitForTimeout(30);
     }
-    await scrollToP(page, 0.3);
-    await waitP(page, 0.3);
-    await scrollToP(page, 0);
-    await waitP(page, 0);
+    await page.mouse.wheel(0, 3000);
+    await page.waitForFunction(() => document.getElementById("servicos").getBoundingClientRect().top < innerHeight / 2, null, { timeout: 10000 });
+    assert.ok((await progress(page)) >= p0, "a animação nunca recua com o scroll");
+    await page.evaluate(() => window.scrollTo(0, 0));
   });
 
   await step(`${tag} estado final mostra título, subtítulo, CTAs e preço`, async () => {
-    await scrollToP(page, 1);
+    await seekP(page, 1);
     await waitP(page, 1);
     await page.waitForTimeout(300);
     assert.ok(await page.locator("#hero-title").isVisible());
@@ -84,27 +121,23 @@ for (const vp of [
     assert.ok(await page.locator("[data-reveal-cta]").first().isVisible());
   });
 
-  await step(`${tag} a página continua depois da animação (sem saltos)`, async () => {
+  await step(`${tag} a página continua logo depois do banner (sem saltos)`, async () => {
     // banner → faixa de transição escuro→prata → Serviços, sem espaços nem sobreposições
-    const [band, bandH, before, vh] = await page.evaluate(() => {
+    const [band, bandH, serv, heroH] = await page.evaluate(() => {
       const b = document.querySelector(".silver-transition").getBoundingClientRect();
-      return [b.top, b.height, document.getElementById("servicos").getBoundingClientRect().top, innerHeight];
+      return [b.top, b.height, document.getElementById("servicos").getBoundingClientRect().top, document.getElementById("inicio").offsetHeight];
     });
-    assert.ok(Math.abs(band - vh) < 2, `transição começa logo após o banner (top=${band})`);
-    assert.ok(Math.abs(before - (vh + bandH)) < 2, `serviços começa logo após a transição (top=${before})`);
-    await page.mouse.move(vp.width / 2, vp.height / 2);
-    await page.mouse.wheel(0, 600);
-    await page.waitForFunction((b) => document.getElementById("servicos").getBoundingClientRect().top < b - 300, before, { timeout: 5000 }).catch(() => {});
-    const after = await page.evaluate(() => document.getElementById("servicos").getBoundingClientRect().top);
-    assert.ok(after < before - 300);
+    assert.ok(Math.abs(band - heroH) < 2, `transição começa logo após o banner (top=${band})`);
+    assert.ok(Math.abs(serv - (heroH + bandH)) < 2, `serviços começa logo após a transição (top=${serv})`);
   });
 
-  await step(`${tag} SALTAR INTRODUÇÃO avança para o estado final`, async () => {
+  await step(`${tag} SALTAR INTRODUÇÃO vai para o estado final sem mover a página`, async () => {
     await page.evaluate(() => window.scrollTo(0, 0));
-    await waitP(page, 0);
+    await seekP(page, 0.2);
     await page.getByRole("button", { name: "Saltar introdução" }).click();
     await waitP(page, 1);
     assert.ok(await page.locator("#hero-title").isVisible());
+    assert.equal(await page.evaluate(() => window.scrollY), 0);
   });
 
   await step(`${tag} sem scroll horizontal`, async () => {
@@ -194,12 +227,76 @@ for (const vp of [
   await ctx.close();
 }
 
-await step("[reduced-motion] mostra versão estática sem WebGL", async () => {
+await step("[reduced-motion] mostra versão estática sem WebGL e o scroll segue livre", async () => {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, reducedMotion: "reduce" });
   const page = await ctx.newPage();
   await page.goto(URL, { waitUntil: "networkidle" });
   assert.equal(await page.locator("canvas").count(), 0);
   assert.ok(await page.locator("#hero-title").isVisible());
+  await page.mouse.move(640, 400);
+  const n = await wheelsToServices(page);
+  assert.ok(n <= 14, `${n} gestos até à secção seguinte`);
+  await ctx.close();
+});
+
+// ---------------------------------------------------------------------------
+// Toque (swipe real via CDP) em viewports de Android e iPhone
+// ---------------------------------------------------------------------------
+for (const [name, dev] of [["android", devices["Pixel 7"]], ["iphone", devices["iPhone 13"]]]) {
+  await step(`[${name}] swipe durante a introdução (antes de o 3D estar pronto) passa para a secção seguinte em ≤ 3 gestos`, async () => {
+    const ctx = await browser.newContext({ ...dev });
+    const page = await ctx.newPage();
+    const errors = [];
+    page.on("pageerror", (e) => errors.push(String(e)));
+    const cdp = await ctx.newCDPSession(page);
+    await page.goto(URL + "?quality=low", { waitUntil: "domcontentloaded" });
+    await page.waitForFunction(() => document.querySelector("[data-hero-poster] img")?.naturalWidth > 0, null, { timeout: 20000 });
+    const vh = await page.evaluate(() => innerHeight);
+    const swipe = async (dy) => {
+      const x = 180, y0 = Math.round(vh * 0.8), steps = 8;
+      const pts = (y) => [{ x, y, radiusX: 4, radiusY: 4, force: 1, id: 1 }];
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: pts(y0) });
+      for (let k = 1; k <= steps; k++) {
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: pts(Math.round(y0 - (dy * k) / steps)) });
+        await page.waitForTimeout(12);
+      }
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    };
+    let n = 0;
+    while (n < 6 && (await page.evaluate(() => document.getElementById("servicos").getBoundingClientRect().top)) > 2) {
+      const y = await page.evaluate(() => scrollY);
+      await swipe(Math.round(vh * 0.55));
+      n++;
+      // o documento responde ao gesto (não fica preso no banner)
+      await page.waitForFunction((y) => scrollY > y, y, { timeout: 3000 });
+    }
+    assert.ok(n <= 3, `${n} swipes até à secção seguinte`);
+    // e volta ao topo com swipes no sentido inverso
+    for (let i = 0; i < 4 && (await page.evaluate(() => scrollY)) > 0; i++) await swipe(-Math.round(vh * 0.6));
+    await page.waitForFunction(() => scrollY === 0, null, { timeout: 5000 });
+    assert.deepEqual(errors, []);
+    await ctx.close();
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Mudança de rota: sair da página e voltar (histórico) — sem erros, um só contexto WebGL
+// ---------------------------------------------------------------------------
+await step("[rota] sair para outra página e voltar: o banner volta a funcionar, sem erros nem contextos duplicados", async () => {
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.goto(URL + "?quality=low", { waitUntil: "domcontentloaded" });
+  await page.waitForSelector("[data-scene-ready]", { timeout: 120000 });
+  await page.goto(URL + "/pagina-que-nao-existe", { waitUntil: "domcontentloaded" });
+  await page.goBack({ waitUntil: "domcontentloaded" });
+  await page.waitForSelector("[data-scene-ready]", { timeout: 120000 });
+  assert.equal(await page.locator("#inicio canvas:not([data-dust])").count(), 1);
+  await page.waitForFunction(() => window.__viralizaHero.progress > 0.02, null, { timeout: 20000 });
+  await page.mouse.move(640, 360);
+  assert.ok((await wheelsToServices(page)) <= 12);
+  assert.deepEqual(errors, []);
   await ctx.close();
 });
 
@@ -248,7 +345,7 @@ await step("[carregamento] navegação livre enquanto o motor 3D carrega; troca 
   await ctx.close();
 });
 
-await step("[fluidez] depois da preparação em segundo plano, nenhum shader é compilado durante o scroll", async () => {
+await step("[fluidez] depois da preparação em segundo plano, nenhum shader é compilado durante a animação", async () => {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
   const page = await ctx.newPage();
   await page.addInitScript(() => {
@@ -262,13 +359,15 @@ await step("[fluidez] depois da preparação em segundo plano, nenhum shader é 
   await page.waitForFunction(() => window.__viralizaHero?.prepared >= 2, null, { timeout: 300000, polling: 500 });
   await page.waitForTimeout(1500);
   const before = await page.evaluate(() => window.__links);
+  // percorre todas as fases em pontos exactos (leitor em pausa para posições deterministas)
+  await page.evaluate(() => window.__viralizaPlayer.setVisible(false));
   for (const p of [0.1, 0.3, 0.41, 0.45, 0.5, 0.56, 0.62, 0.7, 0.8, 0.9, 1, 0.6, 0.45, 0.2, 0]) {
-    await scrollToP(page, p);
+    await seekP(page, p);
     await waitP(page, p);
     await page.waitForTimeout(150);
   }
   const after = await page.evaluate(() => window.__links);
-  assert.equal(after - before, 0, `${after - before} shaders compilados durante o scroll`);
+  assert.equal(after - before, 0, `${after - before} shaders compilados durante a animação`);
   await ctx.close();
 });
 

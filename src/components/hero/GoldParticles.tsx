@@ -19,7 +19,7 @@ export function GoldParticles({ tier }: { tier: QualityTier }) {
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
     const coarse = window.matchMedia("(pointer: coarse)").matches;
-    const N = tier === "low" ? 22 : coarse ? 40 : 70;
+    const N = tier === "low" ? 18 : coarse ? 24 : 70;
     const parts = Array.from({ length: N }, (_, i) => {
       const r = (k: number) => {
         const s = Math.sin((i + 1) * 12.9898 + k * 78.233) * 43758.5453;

@@ -59,13 +59,18 @@ const STAGE_NEEDED_AT = [0, 0.22, 0.42] as const;
  * cada peça da câmara, cada luz e cada elemento do estúdio é um objecto 3D próprio.
  */
 export default function HeroScene({ tier, active, onReady }: Props) {
-  const post = tier !== "low";
-  // Telemóveis/tablets: desenha só quando o scroll muda (+ atmosfera a 15 fps) — menos GPU,
-  // menos bateria e menos aquecimento. O desktop mantém o ciclo contínuo.
+  // Telemóveis/tablets: desenha só quando a animação muda (≤ 30 fps; ≤ 15 fps enquanto o
+  // utilizador faz scroll), sem pós-processamento e com resolução ≤ 1.25× — o GPU fica
+  // disponível para o scroll do navegador. O desktop mantém o ciclo contínuo.
   const [touch] = useState(
     () =>
       typeof window !== "undefined" &&
       window.matchMedia("(pointer: coarse)").matches,
+  );
+  const post = tier !== "low" && !touch;
+  const dprRange = useMemo<[number, number]>(
+    () => (touch ? [DPR[tier][0], Math.min(DPR[tier][1], 1.25)] : DPR[tier]),
+    [tier, touch],
   );
   const [stage, setStage] = useState(0);
   const [mounted, setMounted] = useState(-1);
@@ -135,7 +140,7 @@ export default function HeroScene({ tier, active, onReady }: Props) {
   return (
     <Canvas
       frameloop={!active ? "never" : touch ? "demand" : "always"}
-      dpr={DPR[tier][1]}
+      dpr={dprRange[1]}
       shadows={tier === "high" ? "soft" : false}
       camera={{ fov: 38, near: 0.03, far: 80, position: [2.2, 1.64, 3.9] }}
       gl={{
@@ -156,7 +161,7 @@ export default function HeroScene({ tier, active, onReady }: Props) {
       }}
       aria-hidden
     >
-      <AdaptiveResolution range={DPR[tier]} touch={touch} />
+      <AdaptiveResolution range={dprRange} touch={touch} />
       {content}
       {touch && active && <OnDemandInvalidator />}
     </Canvas>
@@ -636,12 +641,26 @@ function AdaptiveResolution({
 function OnDemandInvalidator() {
   const invalidate = useThree((s) => s.invalidate);
   useEffect(() => {
+    let last = 0;
+    let lastScroll = 0;
+    // a animação pede frames a cada passo, mas em ecrãs tácteis: ≤ 30 fps, e ≤ 15 fps enquanto
+    // o utilizador está a fazer scroll (o gesto tem prioridade sobre a animação)
+    const request = () => {
+      const now = performance.now();
+      const gap = now - lastScroll < 150 ? 66 : 32;
+      if (now - last < gap) return;
+      last = now;
+      invalidate();
+    };
+    const onScroll = () => (lastScroll = performance.now());
     invalidate();
-    const off = onHeroProgress(() => invalidate());
+    const off = onHeroProgress(request);
     const idleTimer = window.setInterval(() => invalidate(), 66);
+    window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
       off();
       window.clearInterval(idleTimer);
+      window.removeEventListener("scroll", onScroll);
     };
   }, [invalidate]);
   return null;

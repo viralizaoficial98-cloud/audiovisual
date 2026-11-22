@@ -17,11 +17,8 @@ page.on("console", (m) => { if (m.type() === "error" || m.type() === "warning") 
 await page.goto(url + (quality ? `?quality=${quality}` : ""), { waitUntil: "networkidle" });
 await page.waitForFunction(() => !document.querySelector("[data-hero-loader]"), null, { timeout: 120000 });
 for (const p of ps) {
-  await page.evaluate((p) => {
-    const s = document.getElementById("inicio");
-    const top = s.offsetTop + window.__viralizaMap.sceneToScroll(p) * (s.offsetHeight - innerHeight);
-    window.scrollTo(0, top);
-  }, p);
+  // a sequência é reproduzida no tempo: leva o leitor ao ponto p (a página não se move)
+  await page.evaluate((p) => window.__viralizaPlayer.seek(window.__viralizaMap.sceneToScroll(p)), p);
   await page.waitForFunction((p) => Math.abs(window.__viralizaHero.progress - p) < 0.002, p, { timeout: 30000 }).catch(() => {});
   await page.waitForTimeout(600);
   const t0 = Date.now();

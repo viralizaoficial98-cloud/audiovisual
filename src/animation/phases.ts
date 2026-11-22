@@ -120,13 +120,13 @@ export const ASSEMBLY = {
 };
 
 /**
- * Mapeamento scroll → cena. A montagem da câmara (cena 0 → 0.40) recebe 40,7% do
- * scroll; o resto da narrativa mantém todas as janelas originais. Linear por troços,
- * contínuo e monótono, portanto reversível.
+ * Mapeamento tempo → cena (antes: scroll → cena). A montagem da câmara (cena 0 → 0.40)
+ * recebe ~33% da duração; o resto da narrativa mantém todas as janelas originais. Linear por
+ * troços, contínuo e monótono.
  */
 /**
- * Troços (scroll, cena) para um banner de 1120vh. Câmara e luzes mantêm os mesmos vh
- * aprovados; o estúdio recebe ~360vh e o banner final ~114vh.
+ * Troços (fracção do tempo, cena). Proporções herdadas da versão por scroll (1120vh):
+ * câmara ≈ 8.6 s, luzes ≈ 5.3 s + pausa ≈ 1 s, estúdio ≈ 8.4 s, revelação ≈ 2.6 s.
  */
 const KNOTS: Array<[number, number]> = [
   [0, 0],
@@ -149,3 +149,11 @@ function piecewise(t: number, from: 0 | 1, to: 0 | 1) {
 
 export const scrollToScene = (t: number) => piecewise(t, 0, 1);
 export const sceneToScroll = (p: number) => piecewise(p, 1, 0);
+
+/**
+ * A sequência é reproduzida no TEMPO (não pelo scroll): as mesmas proporções entre fases,
+ * agora como fracção da duração total. O scroll da página fica 100% nativo e livre.
+ */
+export const HERO_DURATION_S = 26;
+export const timeToScene = scrollToScene;
+export const sceneToTime = sceneToScroll;

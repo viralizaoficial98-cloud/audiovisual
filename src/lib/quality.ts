@@ -29,6 +29,12 @@ export function detectWebGL(): boolean {
   }
 }
 
+/** O nível foi imposto por parâmetro (?quality=…) — diagnóstico e testes. */
+export function isTierForced(): boolean {
+  if (typeof window === "undefined") return false;
+  return /[?&]quality=(high|medium|low)\b/.test(window.location.search);
+}
+
 export function detectTier(): QualityTier {
   if (typeof window === "undefined") return "medium";
   const params = new URLSearchParams(window.location.search);

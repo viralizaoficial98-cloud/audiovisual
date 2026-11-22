@@ -6,8 +6,10 @@ import { sceneToScroll, scrollToScene } from "./phases";
  * o que mantém o scroll a 60 FPS.
  */
 export const heroState = {
-  /** Progresso global da sequência (0 → 1), já suavizado pelo scrub do ScrollTrigger. */
+  /** Progresso global da cena (0 → 1), derivado do tempo da sequência (ver heroPlayer.ts). */
   progress: 0,
+  /** Posição no tempo da sequência (0 → 1). Persiste entre montagens (ex.: mudança de rota). */
+  time: 0,
   /** true quando a secção do banner está visível (a cena pausa o render fora do ecrã). */
   visible: true,
   /** Fases já preparadas na GPU (0 = câmara; 1 = + kit de luz; 2 = + estúdio). -1 = a carregar. */
