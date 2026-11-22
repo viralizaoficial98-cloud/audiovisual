@@ -139,7 +139,7 @@ export default function HeroScene({ tier, active, onReady }: Props) {
 
   return (
     <Canvas
-      frameloop={!active ? "never" : touch ? "demand" : "always"}
+      frameloop={!active ? "never" : "demand"}
       dpr={dprRange[1]}
       shadows={tier === "high" ? "soft" : false}
       camera={{ fov: 38, near: 0.03, far: 80, position: [2.2, 1.64, 3.9] }}
@@ -163,7 +163,7 @@ export default function HeroScene({ tier, active, onReady }: Props) {
     >
       <AdaptiveResolution range={dprRange} touch={touch} />
       {content}
-      {touch && active && <OnDemandInvalidator />}
+      {active && <OnDemandInvalidator touch={touch} />}
     </Canvas>
   );
 }
@@ -638,30 +638,34 @@ function AdaptiveResolution({
 }
 
 /** Renderização a pedido: um frame por cada mudança de progresso + atmosfera lenta. */
-function OnDemandInvalidator() {
+/**
+ * Ritmo de render, sempre a pedido e com o scroll da página como prioridade:
+ *  - desktop: todos os frames com a página parada; 1 em cada 2 (~30 fps) enquanto o
+ *    utilizador faz scroll — a GPU fica livre para o scroll do navegador;
+ *  - ecrãs tácteis: ≤ 30 fps com a página parada; ≤ 15 fps durante o scroll.
+ */
+function OnDemandInvalidator({ touch }: { touch: boolean }) {
   const invalidate = useThree((s) => s.invalidate);
   useEffect(() => {
     let last = 0;
     let lastScroll = 0;
-    // a animação pede frames a cada passo, mas em ecrãs tácteis: ≤ 30 fps, e ≤ 15 fps enquanto
-    // o utilizador está a fazer scroll (o gesto tem prioridade sobre a animação)
-    const request = () => {
-      const now = performance.now();
-      const gap = now - lastScroll < 150 ? 66 : 32;
-      if (now - last < gap) return;
+    let raf = 0;
+    const base = touch ? 32 : 0;
+    const whileScrolling = touch ? 66 : 32;
+    const loop = (now: number) => {
+      raf = requestAnimationFrame(loop);
+      const gap = now - lastScroll < 150 ? whileScrolling : base;
+      if (now - last < gap - 1) return;
       last = now;
       invalidate();
     };
     const onScroll = () => (lastScroll = performance.now());
-    invalidate();
-    const off = onHeroProgress(request);
-    const idleTimer = window.setInterval(() => invalidate(), 66);
+    raf = requestAnimationFrame(loop);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
-      off();
-      window.clearInterval(idleTimer);
+      cancelAnimationFrame(raf);
       window.removeEventListener("scroll", onScroll);
     };
-  }, [invalidate]);
+  }, [invalidate, touch]);
   return null;
 }
