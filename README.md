@@ -100,6 +100,32 @@ Durante a montagem, as peças que esperam a meio ou à frente da sala sobem para
 - Sem WebGL → sequência de imagens sincronizada com a sequência (fallback 2D assumido). `prefers-reduced-motion` e telemóveis de baixo desempenho (nível `low` detectado pela capacidade real: núcleos, memória, GPU) → composição estática de qualidade, sem WebGL.
 - No mobile: secção mais curta, FOV adaptado a ecrãs verticais e enquadramento centrado no set de podcast.
 
+### Scroll livre: banner de um ecrã (revisão "scroll preso no banner")
+
+**Causa raiz (medida, não suposta).** A secção do banner tinha `h-[1120vh]` (desktop) / `h-[905svh]` (telemóvel) e o palco `position: sticky`; a timeline GSAP estava presa ao scroll (`ScrollTrigger` + `scrub`, `src/animation/heroTimeline.ts` e `src/components/hero/CinematicHero.tsx`). Para chegar à secção seguinte era preciso percorrer ~10 ecrãs com o palco parado (a sensação de "página presa"), e o `scrub` fazia a cena seguir o dedo com atraso ("resistência"). Não havia `preventDefault` em `wheel`/`touchmove` no código da aplicação nem scroll snapping.
+
+**Correcção estrutural.**
+- O banner é uma secção normal de `100svh` (mín. 560 px): sem `sticky`, sem `ScrollTrigger`, sem listeners de scroll da animação. O scroll é 100% nativo.
+- A sequência é reproduzida **no tempo** por `src/animation/heroPlayer.ts` (um só ciclo de `requestAnimationFrame`, parado quando não há nada a animar): 2.5 s no título de abertura, depois câmara → luzes → estúdio → revelação (26 s, mesmas proporções entre fases). Só reproduz com o banner ≥ 35% visível e o separador activo; ao sair pausa, ao voltar retoma do mesmo ponto (também depois de mudar de página e voltar). Se a fase seguinte ainda não estiver preparada na GPU, é a animação que espera na fronteira — nunca o scroll.
+- "Saltar introdução" vai ao estado final sem mover a página. O canvas decorativo tem `pointer-events: none`.
+- Render sempre a pedido, com o scroll como prioridade: desktop a todos os frames com a página parada e ~30 fps durante o scroll; ecrãs tácteis ≤ 30 fps / ≤ 15 fps durante o scroll, sem pós-processamento, resolução ≤ 1.25×, 24 partículas.
+- Telemóveis de baixo desempenho (nível `low` pela capacidade real — núcleos, memória, GPU — e não pela largura) e `prefers-reduced-motion`: composição estática de qualidade.
+
+**Testes (Playwright, `tests/e2e/hero.e2e.mjs`, 40/40):** banner com a altura de um ecrã e sem `sticky`/snap; animação avança sozinha sem scroll; roda do rato até à secção seguinte (desktop e 390×844) antes de a animação terminar; swipes reais (CDP) em viewports de Android (Pixel 7) e iPhone 13 **durante a introdução, antes de o 3D estar pronto**, e regresso ao topo; scroll rápido e repetido; pausa fora do banner e retoma no mesmo ponto; "Saltar introdução" sem mover a página; mudança de rota e regresso (sem erros, um só contexto WebGL); `prefers-reduced-motion`; formulários e restantes secções.
+
+**Antes → depois** (Chromium headless sem GPU, build de produção; antes = commit `5737fe5`; gestos reais: roda = 100 px por "notch"; swipe = arrasto de 55% do ecrã, sem inércia):
+
+| | Antes | Depois |
+|---|---|---|
+| Altura do banner | 11.2 ecrãs (desktop) / 9.05 (telemóvel) | **1 ecrã** |
+| Desktop: "notches" da roda até à secção seguinte | 103 | **11** (um ecrã + faixa de transição) |
+| Android / iPhone com 3D: swipes até à secção seguinte | 18 | **3** |
+| Tempo até à secção seguinte — desktop / Android 3D / iPhone 3D | 546 s / 61–83 s / 56–64 s | **29.6 s / 9.6–11.8 s / 9.6 s** |
+| Maior tarefa longa nos primeiros 15 s (desktop) | 3.9 s | 1.5 s |
+| LCP / CLS | 108–136 ms / ≤ 0.0006 | 108–140 ms / ≤ 0.0006 (sem regressão) |
+
+Leitura honesta das métricas que dependem da GPU: neste ambiente cada frame 3D é desenhado por software (segundos por frame em viewports de telemóvel com DPR alto), por isso a **resposta por gesto e o INP com o 3D activo não são representativos** e não mostraram melhoria clara (INP 0.8–1.8 s antes vs 0.8–1.2 s depois; resposta mediana ao swipe 2.6–3.7 s antes vs 3.9–4.5 s depois — o custo de desenho da fase da câmara subiu com as luzes constantes da revisão anterior). Com a composição estática (o que este emulador recebe por omissão, por não ter GPU) o INP é 48 ms e a secção seguinte chega em 2 swipes / < 1 s. A fluidez real (60 fps, INP) tem de ser confirmada num telemóvel e num PC reais.
+
 ### Carregamento progressivo e fluidez (optimização de desempenho)
 
 **Primeiro ecrã imediato.** O HTML já traz a imagem inicial (`public/hero/poster-*.avif|webp`, 13–27 KB): um render da *própria cena 3D* em p = 0, em versão horizontal e vertical. O motor 3D (three.js + cena, chunk separado) descarrega em segundo plano; quando o primeiro frame 3D real está desenhado, a imagem desvanece (700 ms) — sem flash preto nem salto de layout. O "A PREPARAR O ESTÚDIO" passou a ser um indicador discreto (canto superior esquerdo) que não bloqueia o menu, o scroll nem o botão "Saltar introdução", e só desaparece quando a cena está mesmo pronta (sem temporizadores).
