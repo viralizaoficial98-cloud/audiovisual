@@ -25,6 +25,11 @@ async function open(viewport) {
   page.on("pageerror", (e) => errors.push(String(e)));
   // intercepta window.open para validar as mensagens de WhatsApp sem abrir separadores
   await page.addInitScript(() => {
+    window.__draws = 0;
+    for (const C of [window.WebGLRenderingContext, window.WebGL2RenderingContext]) {
+      const o = C?.prototype.drawElements;
+      if (o) C.prototype.drawElements = function (...a) { window.__draws++; return o.apply(this, a); };
+    }
     window.__opened = [];
     window.open = (u) => (window.__opened.push(String(u)), null);
   });
@@ -88,16 +93,19 @@ for (const vp of [
     assert.ok(n <= limit, `${n} gestos de roda (máximo ${limit})`);
   });
 
-  await step(`${tag} fora do banner a animação pausa; ao voltar ao topo retoma do mesmo ponto`, async () => {
+  await step(`${tag} fora do banner o 3D deixa de desenhar mas o tempo continua; ao voltar está na fase correspondente`, async () => {
     await page.waitForTimeout(400);
     const a = await progress(page);
+    const draws0 = await page.evaluate(() => window.__draws);
     await page.waitForTimeout(1500);
-    const b = await progress(page);
-    assert.ok(Math.abs(b - a) < 1e-6, `pausada fora do ecrã (${a} → ${b})`);
+    const [b, draws1, gated] = await page.evaluate(() => [window.__viralizaHero.progress, window.__draws, window.__viralizaHero.prepared]);
+    // (a sequência só espera numa fronteira de fase ainda não preparada na GPU)
+    assert.ok(b > a || (gated < 2 && b > 0.39), `o tempo continua fora do ecrã (${a} → ${b})`);
+    // (a preparação da GPU, se ainda decorrer, continua fora do ecrã com desenhos de 4×4 px)
+    if (gated >= 2) assert.equal(draws1 - draws0, 0, "sem desenho 3D fora do ecrã");
     await page.evaluate(() => window.scrollTo(0, 0));
-    await page.waitForFunction((b) => window.__viralizaHero.progress > b + 0.003, b, { timeout: 20000 });
-    const c = await progress(page);
-    assert.ok(c - b < 0.2, "retoma do mesmo ponto (sem saltos)");
+    await page.waitForTimeout(300);
+    assert.ok((await progress(page)) >= b, "ao voltar, continua a partir da fase correspondente (nunca recua)");
   });
 
   await step(`${tag} scroll rápido e repetido não prende a página nem faz recuar a animação`, async () => {
@@ -360,7 +368,7 @@ await step("[fluidez] depois da preparação em segundo plano, nenhum shader é 
   await page.waitForTimeout(1500);
   const before = await page.evaluate(() => window.__links);
   // percorre todas as fases em pontos exactos (leitor em pausa para posições deterministas)
-  await page.evaluate(() => window.__viralizaPlayer.setVisible(false));
+  await page.evaluate(() => window.__viralizaPlayer.setPaused(true));
   for (const p of [0.1, 0.3, 0.41, 0.45, 0.5, 0.56, 0.62, 0.7, 0.8, 0.9, 1, 0.6, 0.45, 0.2, 0]) {
     await seekP(page, p);
     await waitP(page, p);
@@ -368,6 +376,62 @@ await step("[fluidez] depois da preparação em segundo plano, nenhum shader é 
   }
   const after = await page.evaluate(() => window.__links);
   assert.equal(after - before, 0, `${after - before} shaders compilados durante a animação`);
+  await ctx.close();
+});
+
+// ---------------------------------------------------------------------------
+// Sequência automática completa: termina, sem loop, e o 3D deixa de desenhar
+// ---------------------------------------------------------------------------
+await step("[automático] começa sem interacção, passa por todas as fases, termina montado, sem loop, e pára de desenhar", async () => {
+  const ctx = await browser.newContext({ viewport: { width: 640, height: 360 } });
+  const page = await ctx.newPage();
+  await page.addInitScript(() => {
+    window.__draws = 0;
+    for (const C of [window.WebGLRenderingContext, window.WebGL2RenderingContext]) {
+      const o = C?.prototype.drawElements;
+      if (o) C.prototype.drawElements = function (...a) { window.__draws++; return o.apply(this, a); };
+    }
+    window.__seen = [];
+    const t = setInterval(() => {
+      const h = window.__viralizaHero;
+      if (h) window.__seen.push(h.progress);
+    }, 100);
+  });
+  // nenhuma interacção: só carregar a página
+  await page.goto(URL + "?quality=low", { waitUntil: "domcontentloaded" });
+  await page.waitForFunction(() => window.__viralizaPlayer?.finished, null, { timeout: 600000, polling: 500 });
+  const seen = await page.evaluate(() => window.__seen);
+  for (const [name, p] of [["câmara", 0.2], ["luzes", 0.45], ["estúdio", 0.7], ["revelação", 0.95]]) assert.ok(seen.some((x) => x >= p), `passou pela fase ${name}`);
+  for (let i = 1; i < seen.length; i++) assert.ok(seen[i] >= seen[i - 1] - 1e-9, "o progresso nunca recua");
+  assert.equal(await progress(page), 1);
+  assert.ok(await page.locator("#hero-title").isVisible(), "estado final com o título");
+  // sem loop: continua no fim; o desenho pára depois de o estado final assentar
+  await page.waitForTimeout(3000);
+  const d0 = await page.evaluate(() => window.__draws);
+  await page.waitForTimeout(3000);
+  const d1 = await page.evaluate(() => window.__draws);
+  assert.equal(await progress(page), 1, "não recomeça");
+  assert.equal(d1 - d0, 0, `o 3D deixou de desenhar no fim (${d1 - d0} draws em 3 s)`);
+  // botão comercial funcional no estado final
+  await page.locator('[data-reveal-cta][href="#reserva"]').click();
+  await page.waitForFunction(() => Math.abs(document.getElementById("reserva").getBoundingClientRect().top) < 120, null, { timeout: 10000 });
+  await ctx.close();
+});
+
+await step("[orientação] rodar o ecrã a meio da sequência não a reinicia", async () => {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const page = await ctx.newPage();
+  await page.goto(URL + "?quality=low", { waitUntil: "domcontentloaded" });
+  await page.waitForFunction(() => window.__viralizaHero?.progress > 0.08, null, { timeout: 120000 });
+  const a = await progress(page);
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.waitForTimeout(1200);
+  const b = await progress(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(1200);
+  const c = await progress(page);
+  assert.ok(b >= a && c >= b, `sem reinício (${a} → ${b} → ${c})`);
+  assert.equal(await page.locator("#inicio canvas:not([data-dust])").count(), 1, "um só canvas");
   await ctx.close();
 });
 

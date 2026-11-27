@@ -3,10 +3,13 @@ import { HERO_DURATION_S, sceneToTime } from "./phases";
 import { heroState } from "./heroState";
 
 /**
- * Leitor da sequência cinematográfica. A montagem avança no TEMPO, independentemente do
- * scroll da página (que é sempre nativo e livre):
- *  - reproduz só enquanto o banner está visível (≥ 35%) e o separador está activo;
- *  - ao sair do banner pausa; ao voltar retoma do mesmo ponto (estado consistente);
+ * Leitor da sequência cinematográfica — totalmente automático. A montagem começa sozinha
+ * assim que a cena está pronta e avança no TEMPO (≈ 18.5 s), independentemente do scroll da
+ * página (que é sempre nativo e livre) e de qualquer interacção:
+ *  - o tempo continua a contar mesmo com o banner fora do ecrã (só o desenho 3D é suspenso):
+ *    ao regressar, a sequência está na fase correspondente ou no estado final;
+ *  - só pausa com o separador do navegador escondido;
+ *  - termina no estado final e fica lá — sem loop, sem desmontar; recomeça ao recarregar;
  *  - "Saltar introdução" vai para o estado final sem mover a página;
  *  - se a fase seguinte ainda não estiver preparada na GPU, é a ANIMAÇÃO que espera uns
  *    instantes na fronteira da fase — nunca o scroll do utilizador.
@@ -15,8 +18,12 @@ import { heroState } from "./heroState";
 export type HeroPlayer = {
   /** A cena está pronta: a sequência pode começar. */
   start: () => void;
-  /** Banner visível (≥ 35%) ou não. */
+  /** Banner visível ou não (informativo: o tempo continua a contar fora do ecrã). */
   setVisible: (v: boolean) => void;
+  /** Pausa explícita (diagnóstico e testes). */
+  setPaused: (v: boolean) => void;
+  /** A sequência chegou ao fim (estado final, sem loop). */
+  readonly finished: boolean;
   skip: () => void;
   /** Fracção do tempo (0–1) — usado por testes e diagnóstico. */
   seek: (u: number) => void;
@@ -33,10 +40,10 @@ const GATES: Array<[number, number]> = [
 export function createHeroPlayer(tl: gsap.core.Timeline, opts: { gated: boolean; duration?: number; introHold?: number }): HeroPlayer {
   const duration = opts.duration ?? HERO_DURATION_S;
   // pausa inicial no título de abertura (legível) antes de a montagem começar
-  const introHold = (opts.introHold ?? 2.5) * 1000;
+  const introHold = (opts.introHold ?? 1.5) * 1000;
   let holdUntil = 0;
   let started = false;
-  let visible = true;
+  let paused = false;
   let raf = 0;
   let last = 0;
   let u = heroState.time;
@@ -50,7 +57,7 @@ export function createHeroPlayer(tl: gsap.core.Timeline, opts: { gated: boolean;
     heroState.time = u;
     tl.progress(u);
   };
-  const playing = () => started && visible && u < 1 && !document.hidden;
+  const playing = () => started && !paused && u < 1 && !document.hidden;
 
   const tick = (now: number) => {
     raf = 0;
@@ -86,9 +93,15 @@ export function createHeroPlayer(tl: gsap.core.Timeline, opts: { gated: boolean;
       if (u === 0) holdUntil = performance.now() + introHold;
       kick();
     },
-    setVisible(v) {
-      visible = v;
+    setVisible() {
       kick();
+    },
+    setPaused(v) {
+      paused = v;
+      kick();
+    },
+    get finished() {
+      return u >= 1;
     },
     skip() {
       u = 1;

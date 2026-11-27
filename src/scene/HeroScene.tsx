@@ -649,22 +649,51 @@ function OnDemandInvalidator({ touch }: { touch: boolean }) {
   useEffect(() => {
     let last = 0;
     let lastScroll = 0;
+    let lastPointer = 0;
+    let finishedAt = 0;
     let raf = 0;
     const base = touch ? 32 : 0;
     const whileScrolling = touch ? 66 : 32;
+    // Sequência terminada (estado final assente) e GPU preparada → deixa de desenhar: o último
+    // frame fica no ecrã e o processamento pára. O rato (parallax no desktop) e qualquer
+    // mudança de progresso voltam a acordar o ciclo; o redimensionamento é tratado pelo R3F.
+    const idle = (now: number) => {
+      if (heroState.time < 1 || heroState.prepared < 2) {
+        finishedAt = 0;
+        return false;
+      }
+      finishedAt ||= now;
+      return now - finishedAt > 1200 && now - lastPointer > 1500;
+    };
     const loop = (now: number) => {
+      if (idle(now)) {
+        raf = 0;
+        return;
+      }
       raf = requestAnimationFrame(loop);
       const gap = now - lastScroll < 150 ? whileScrolling : base;
       if (now - last < gap - 1) return;
       last = now;
       invalidate();
     };
+    const wake = () => {
+      if (!raf) raf = requestAnimationFrame(loop);
+    };
     const onScroll = () => (lastScroll = performance.now());
+    const onPointer = (e: PointerEvent) => {
+      if (e.pointerType !== "mouse") return;
+      lastPointer = performance.now();
+      wake();
+    };
+    const off = onHeroProgress(wake);
     raf = requestAnimationFrame(loop);
     window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("pointermove", onPointer, { passive: true });
     return () => {
       cancelAnimationFrame(raf);
+      off();
       window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("pointermove", onPointer);
     };
   }, [invalidate, touch]);
   return null;

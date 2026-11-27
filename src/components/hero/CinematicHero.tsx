@@ -5,7 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { buildHeroTimeline } from "@/animation/heroTimeline";
 import { createHeroPlayer, type HeroPlayer } from "@/animation/heroPlayer";
 import { heroState } from "@/animation/heroState";
-import { detectTier, detectWebGL, isTierForced, prefersReducedMotion, type QualityTier } from "@/lib/quality";
+import { detectTier, detectWebGL, isTierForced, isWeakDevice, prefersReducedMotion, type QualityTier } from "@/lib/quality";
 import { HeroOverlay } from "./HeroOverlay";
 import { HeroLoader, HeroPoster } from "./HeroLoader";
 import { ImageSequenceFallback, StaticHero } from "./HeroFallback";
@@ -35,15 +35,14 @@ export function CinematicHero() {
   const [ready, setReady] = useState(false);
   const [active, setActive] = useState(true);
 
-  // decide o modo no cliente: WebGL; sequência de imagens (sem WebGL); ou composição estática
-  // (movimento reduzido, ou telemóvel de baixo desempenho — pela capacidade real do aparelho,
-  // não pela largura do ecrã)
+  // decide o modo no cliente: WebGL (todos os aparelhos capazes, desktop e mobile); sequência
+  // de imagens (sem WebGL); ou composição final estática (movimento reduzido, ou aparelho que
+  // não consegue reproduzir a animação adequadamente — pela capacidade real, não pela largura)
   useIsoLayoutEffect(() => {
     if (prefersReducedMotion()) return setMode("static");
     if (!detectWebGL()) return setMode("fallback");
+    if (isWeakDevice() && !isTierForced()) return setMode("static");
     const t = detectTier();
-    const coarse = window.matchMedia("(pointer: coarse)").matches;
-    if (coarse && t === "low" && !isTierForced()) return setMode("static");
     loadScene(); // começa já a descarregar o motor 3D (em paralelo com a hidratação)
     setTier(t);
     setMode("webgl");

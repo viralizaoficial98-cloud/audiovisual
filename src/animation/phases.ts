@@ -125,8 +125,8 @@ export const ASSEMBLY = {
  * troços, contínuo e monótono.
  */
 /**
- * Troços (fracção do tempo, cena). Proporções herdadas da versão por scroll (1120vh):
- * câmara ≈ 8.6 s, luzes ≈ 5.3 s + pausa ≈ 1 s, estúdio ≈ 8.4 s, revelação ≈ 2.6 s.
+ * Troços (fracção do tempo, cena). Proporções herdadas da versão por scroll (1120vh); com
+ * 17 s: câmara ≈ 5.6 s, luzes ≈ 3.5 s + pausa ≈ 0.7 s, estúdio ≈ 5.5 s, revelação ≈ 1.7 s.
  */
 const KNOTS: Array<[number, number]> = [
   [0, 0],
@@ -154,6 +154,7 @@ export const sceneToScroll = (p: number) => piecewise(p, 1, 0);
  * A sequência é reproduzida no TEMPO (não pelo scroll): as mesmas proporções entre fases,
  * agora como fracção da duração total. O scroll da página fica 100% nativo e livre.
  */
-export const HERO_DURATION_S = 26;
+/** Duração da montagem (s), depois de 1.5 s no título de abertura: ≈ 18.5 s no total. */
+export const HERO_DURATION_S = 17;
 export const timeToScene = scrollToScene;
 export const sceneToTime = sceneToScroll;
