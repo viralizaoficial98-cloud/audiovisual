@@ -96,6 +96,11 @@ export function CinematicHero() {
   }, []);
 
   const onReady = useCallback(() => setReady(true), []);
+  // salvaguarda: se mesmo na qualidade mínima a animação não for aceitável, mostra a
+  // composição final estática (não se aplica com ?quality forçado — diagnóstico e testes)
+  const onUnacceptable = useCallback(() => {
+    if (!isTierForced()) setMode("static");
+  }, []);
 
   if (mode === "static") return <StaticHero />;
 
@@ -104,7 +109,7 @@ export function CinematicHero() {
       <div ref={stage} className="relative h-full w-full overflow-hidden bg-ink" data-scene-ready={ready ? "" : undefined}>
         {/* a cena é decorativa: não captura toques nem cliques (o gesto vai sempre para a página) */}
         <div className="pointer-events-none absolute inset-0" aria-hidden>
-          {mode === "webgl" && <HeroScene tier={tier} active={active} onReady={onReady} />}
+          {mode === "webgl" && <HeroScene tier={tier} active={active} onReady={onReady} onUnacceptable={onUnacceptable} />}
           {mode === "fallback" && <ImageSequenceFallback />}
         </div>
         {/* 1.º ecrã imediato (render da própria cena em p = 0), POR CIMA do canvas enquanto

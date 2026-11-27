@@ -35,6 +35,8 @@ type Props = {
   active: boolean;
   /** Primeiro frame real desenhado (a imagem inicial pode dar lugar à cena). */
   onReady?: () => void;
+  /** A animação não é aceitável neste aparelho mesmo na qualidade mínima. */
+  onUnacceptable?: () => void;
 };
 
 /** Limites da resolução de renderização (devicePixelRatio) por nível de qualidade. */
@@ -58,7 +60,12 @@ const STAGE_NEEDED_AT = [0, 0.22, 0.42] as const;
  * Raiz WebGL do banner. Toda a cena é procedural (geometria real em Three.js):
  * cada peça da câmara, cada luz e cada elemento do estúdio é um objecto 3D próprio.
  */
-export default function HeroScene({ tier, active, onReady }: Props) {
+export default function HeroScene({
+  tier,
+  active,
+  onReady,
+  onUnacceptable,
+}: Props) {
   // Telemóveis/tablets: desenha só quando a animação muda (≤ 30 fps; ≤ 15 fps enquanto o
   // utilizador faz scroll), sem pós-processamento e com resolução ≤ 1.25× — o GPU fica
   // disponível para o scroll do navegador. O desktop mantém o ciclo contínuo.
@@ -161,7 +168,11 @@ export default function HeroScene({ tier, active, onReady }: Props) {
       }}
       aria-hidden
     >
-      <AdaptiveResolution range={dprRange} touch={touch} />
+      <AdaptiveResolution
+        range={dprRange}
+        touch={touch}
+        onUnacceptable={onUnacceptable}
+      />
       {content}
       {active && <OnDemandInvalidator touch={touch} />}
     </Canvas>
@@ -587,23 +598,36 @@ function Preparer({
 function AdaptiveResolution({
   range: [min, max],
   touch,
+  onUnacceptable,
 }: {
   range: [number, number];
   touch: boolean;
+  /** Mesmo na resolução mínima a animação não é aceitável (< ~8 fps) → composição estática. */
+  onUnacceptable?: () => void;
 }) {
   const setDpr = useThree((s) => s.setDpr);
   const st = useRef({
     cur: max,
     lastP: -1,
     wasMoving: false,
-    lastMove: 0,
+    lastScroll: 0,
     samples: [] as number[],
     pending: 0,
     ups: 0,
     cooldown: 0,
+    badWindows: 0,
+    gaveUp: false,
   });
   // orçamento por frame: ~50 fps no desktop, ~36 fps em telemóveis
   const budget = touch ? 1 / 36 : 1 / 50;
+
+  // a sequência é automática (o progresso muda sempre durante a reprodução): as mudanças de
+  // resolução são aplicadas quando o UTILIZADOR não está a fazer scroll da página
+  useEffect(() => {
+    const onScroll = () => (st.current.lastScroll = performance.now());
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   useFrame((_, dt) => {
     const s = st.current;
@@ -611,8 +635,8 @@ function AdaptiveResolution({
     const p = heroState.progress;
     const moving = p !== s.lastP;
     s.lastP = p;
-    if (moving) s.lastMove = now;
-    if (moving && s.wasMoving && dt > 0 && dt < 0.5 && now > s.cooldown) {
+    // amostras: frames consecutivos da animação (inclui frames muito lentos)
+    if (moving && s.wasMoving && dt > 0 && dt < 2 && now > s.cooldown) {
       s.samples.push(dt);
       if (s.samples.length >= 45) {
         const sorted = s.samples.sort((a, b) => a - b);
@@ -622,11 +646,17 @@ function AdaptiveResolution({
           s.pending = Math.max(min, +(s.cur - 0.2).toFixed(2));
         else if (typical < budget * 0.6 && s.cur < max && s.ups < 2)
           s.pending = Math.min(max, +(s.cur + 0.15).toFixed(2));
+        // já na resolução mínima e ainda < ~8 fps em duas janelas seguidas → inaceitável
+        s.badWindows = s.cur <= min && typical > 0.125 ? s.badWindows + 1 : 0;
+        if (s.badWindows >= 2 && !s.gaveUp && onUnacceptable) {
+          s.gaveUp = true;
+          onUnacceptable();
+        }
       }
     }
     s.wasMoving = moving;
-    // aplica só com o scroll parado há 350 ms
-    if (s.pending && now - s.lastMove > 350) {
+    // aplica só com a página parada há 350 ms (nunca redimensiona a meio de um gesto)
+    if (s.pending && now - s.lastScroll > 350) {
       if (s.pending > s.cur) s.ups++;
       s.cur = s.pending;
       s.pending = 0;

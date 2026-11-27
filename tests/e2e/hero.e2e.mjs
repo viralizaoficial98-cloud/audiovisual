@@ -445,7 +445,7 @@ for (const [name, ctxOpts, env, expect3D] of [
   ["desktop com GPU dedicada (NVIDIA)", { viewport: { width: 960, height: 540 } }, spoof("ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 Direct3D11 vs_5_0 ps_5_0)", 12, 16), true],
   ["iPhone 13 (Apple GPU; Safari reporta 2 núcleos)", { ...devices["iPhone 13"] }, spoof("Apple GPU", 2, undefined), true],
   ["Android de gama média (Adreno, 8 núcleos, 4 GB)", { ...devices["Pixel 7"] }, spoof("Adreno (TM) 642L", 8, 4), true],
-  ["Android modesto (2 GB) → composição estática", { ...devices["Pixel 7"] }, spoof("Mali-G52", 8, 2), false],
+  ["Android modesto (2 GB, Mali) → sequência 3D em qualidade reduzida", { ...devices["Pixel 7"] }, spoof("Mali-G52", 8, 2), true],
   ["sem GPU real (renderização por software) → composição estática", { viewport: { width: 960, height: 540 } }, null, false],
 ]) {
   await step(`[detecção automática] ${name}`, async () => {
@@ -480,6 +480,33 @@ for (const [name, ctxOpts, env, expect3D] of [
     await ctx.close();
   });
 }
+
+await step("[salvaguarda] desempenho inaceitável mesmo na qualidade mínima → composição estática (sem erros)", async () => {
+  // desktop com GPU integrada reportada; o desenho por software a 1920×1080 dá ~1 frame/s
+  const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript(() => {
+    for (const C of [WebGLRenderingContext, WebGL2RenderingContext]) {
+      const o = C.prototype.getParameter;
+      C.prototype.getParameter = function (p) {
+        if (p === 0x9246 || p === 0x1f01) return "ANGLE (Intel, Intel(R) UHD Graphics 620 Direct3D11 vs_5_0 ps_5_0)";
+        return o.call(this, p);
+      };
+    }
+    Object.defineProperty(Navigator.prototype, "hardwareConcurrency", { get: () => 8 });
+  });
+  await page.goto(URL, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector("[data-scene-ready]", { timeout: 300000 });
+  // primeiro reduz a resolução; só depois, se continuar inaceitável, passa à composição estática
+  await page.waitForFunction(() => document.querySelectorAll("canvas").length === 0, null, { timeout: 900000, polling: 1000 });
+  assert.ok(await page.locator("#hero-title").isVisible(), "composição final estática com título");
+  await page.mouse.move(960, 540);
+  assert.ok((await wheelsToServices(page)) <= 14, "o scroll continua livre");
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
 
 await browser.close();
 

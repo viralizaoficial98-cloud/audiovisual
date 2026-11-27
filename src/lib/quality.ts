@@ -51,15 +51,16 @@ function device() {
 }
 
 /**
- * Aparelho incapaz de reproduzir a montagem 3D adequadamente → composição final estática.
- * Só em casos claros: sem GPU real (renderização por software) ou com ≤ 2 GB de memória.
- * Todos os outros (incluindo iPhone/iPad e Android de gama média) recebem a sequência 3D,
- * com a qualidade adaptada.
+ * Aparelho que à partida não consegue reproduzir a montagem 3D → composição final estática.
+ * Só sem GPU real (renderização por software). Todos os outros — incluindo telemóveis
+ * modestos — recebem a sequência 3D com a qualidade reduzida progressivamente (nível,
+ * resolução adaptativa, partículas, sombras, pós-processamento); só se, mesmo na qualidade
+ * mínima, a animação ficar abaixo de ~8 fps é que o banner passa à composição estática
+ * (ver AdaptiveResolution em HeroScene.tsx).
  */
 export function isWeakDevice(): boolean {
   if (typeof window === "undefined") return false;
-  const d = device();
-  return d.software || d.memory <= 2 || (d.coarse && !d.ios && d.cores <= 2);
+  return device().software;
 }
 
 export function detectTier(): QualityTier {
