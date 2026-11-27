@@ -119,28 +119,28 @@ export function HeroOverlay({ onSkip }: { onSkip: () => void }) {
       </div>
 
       {/* FASE 5 — revelação */}
-      <div data-phase="reveal" className="invisible absolute inset-x-0 bottom-[7%] flex flex-col items-center px-5 text-center md:bottom-[6%]">
-        <p data-fade className="mb-4 text-[11px] font-semibold tracking-[0.36em] text-brand uppercase">
+      <div data-phase="reveal" className="invisible absolute inset-x-0 bottom-[7%] flex flex-col items-center px-5 text-center short:bottom-[4%] md:bottom-[6%]">
+        <p data-fade className="mb-4 text-[11px] font-semibold tracking-[0.36em] text-brand uppercase short:mb-2 short:text-[10px]">
           Luanda · Angola
         </p>
-        <h2 id="hero-title" tabIndex={-1} className="font-display text-[1.85rem] leading-[0.98] font-extrabold tracking-tight outline-none sm:text-5xl md:text-[2.9rem]">
+        <h2 id="hero-title" tabIndex={-1} className="font-display text-[1.85rem] leading-[0.98] font-extrabold tracking-tight outline-none short:text-[1.55rem] sm:text-5xl short:sm:text-4xl md:text-[2.9rem]">
           <Words text="VIRALIZA" />
           <br className="md:hidden" /> <span className="text-brand">
             <Words text="AUDIOVISUAL & PODCAST" />
           </span>
         </h2>
-        <p data-fade className="mt-3 max-w-xl text-base text-white/80 md:text-lg">
+        <p data-fade className="mt-3 max-w-xl text-base text-white/80 short:mt-2 short:text-sm md:text-lg">
           Transformamos momentos em experiências memoráveis.
         </p>
-        <div className="pointer-events-auto mt-6 flex w-full max-w-md flex-col gap-3 sm:max-w-none sm:flex-row sm:justify-center">
-          <a data-reveal-cta href="#reserva" className="btn-primary invisible">
+        <div className="pointer-events-auto mt-6 flex w-full max-w-md flex-col gap-3 short:mt-4 short:gap-2 sm:max-w-none sm:flex-row sm:justify-center">
+          <a data-reveal-cta href="#reserva" className="btn-primary invisible short:py-2.5">
             Reservar sala de podcast
           </a>
-          <button data-reveal-cta type="button" onClick={() => openQuote("evento")} className="btn-ghost invisible">
+          <button data-reveal-cta type="button" onClick={() => openQuote("evento")} className="btn-ghost invisible short:py-2.5">
             Solicitar cobertura de evento
           </button>
         </div>
-        <p data-reveal-cta className="invisible mt-4 text-xs tracking-wide text-white/60">
+        <p data-reveal-cta className="invisible mt-4 text-xs tracking-wide text-white/60 short:mt-2">
           Sala de podcast a partir de <strong className="text-white">{formatKz(site.podcast.hourlyRate)}</strong> / hora
         </p>
       </div>

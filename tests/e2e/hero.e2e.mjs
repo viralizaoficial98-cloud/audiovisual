@@ -435,6 +435,52 @@ await step("[orientação] rodar o ecrã a meio da sequência não a reinicia", 
   await ctx.close();
 });
 
+// ---------------------------------------------------------------------------
+// Detecção automática de qualidade SEM ?quality (condições normais de utilização).
+// O nome da GPU, os núcleos e a memória são os que um navegador real reportaria
+// (simulados aqui); o desenho continua a ser feito pelo WebGL por software deste ambiente.
+// ---------------------------------------------------------------------------
+const spoof = (gpu, cores, memory) => ({ gpu, cores, memory });
+for (const [name, ctxOpts, env, expect3D] of [
+  ["desktop com GPU dedicada (NVIDIA)", { viewport: { width: 960, height: 540 } }, spoof("ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 Direct3D11 vs_5_0 ps_5_0)", 12, 16), true],
+  ["iPhone 13 (Apple GPU; Safari reporta 2 núcleos)", { ...devices["iPhone 13"] }, spoof("Apple GPU", 2, undefined), true],
+  ["Android de gama média (Adreno, 8 núcleos, 4 GB)", { ...devices["Pixel 7"] }, spoof("Adreno (TM) 642L", 8, 4), true],
+  ["Android modesto (2 GB) → composição estática", { ...devices["Pixel 7"] }, spoof("Mali-G52", 8, 2), false],
+  ["sem GPU real (renderização por software) → composição estática", { viewport: { width: 960, height: 540 } }, null, false],
+]) {
+  await step(`[detecção automática] ${name}`, async () => {
+    const ctx = await browser.newContext(ctxOpts);
+    const page = await ctx.newPage();
+    const errors = [];
+    page.on("pageerror", (e) => errors.push(String(e)));
+    if (env)
+      await page.addInitScript((env) => {
+        for (const C of [WebGLRenderingContext, WebGL2RenderingContext]) {
+          const o = C.prototype.getParameter;
+          C.prototype.getParameter = function (p) {
+            if (p === 0x9246 || p === 0x1f01) return env.gpu; // UNMASKED_RENDERER_WEBGL / RENDERER
+            return o.call(this, p);
+          };
+        }
+        Object.defineProperty(Navigator.prototype, "hardwareConcurrency", { get: () => env.cores });
+        Object.defineProperty(Navigator.prototype, "deviceMemory", { get: () => env.memory });
+      }, env);
+    await page.goto(URL, { waitUntil: "domcontentloaded" }); // sem ?quality
+    if (expect3D) {
+      await page.waitForSelector("[data-scene-ready]", { timeout: 180000 });
+      assert.equal(await page.locator("#inicio canvas:not([data-dust])").count(), 1, "cena 3D");
+      // começa sozinha, sem interacção
+      await page.waitForFunction(() => window.__viralizaHero.progress > 0.02, null, { timeout: 60000 });
+    } else {
+      await page.waitForSelector("#hero-title", { timeout: 20000 });
+      assert.equal(await page.locator("canvas").count(), 0, "composição estática (sem WebGL)");
+      assert.ok(await page.locator("#hero-title").isVisible());
+    }
+    assert.deepEqual(errors, []);
+    await ctx.close();
+  });
+}
+
 await browser.close();
 
 await step("[sem WebGL] usa sequência de imagens e mantém a navegação", async () => {

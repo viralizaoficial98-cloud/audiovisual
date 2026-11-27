@@ -101,8 +101,10 @@ export function CameraRig({ parallax = true }: { parallax?: boolean }) {
       const rest = need / fovGain;
       if (rest > 1) {
         // fases da câmara e da LUZ: recua o necessário para manter o mesmo campo de visão
-        // horizontal do desktop (nada fica cortado); dentro da sala quase não recua
-        const d = Math.pow(rest, lerp(1.0, 0.12, inRoom));
+        // horizontal do desktop (nada fica cortado); dentro da sala recua o suficiente para os
+        // equipamentos laterais (softboxes, câmaras nos tripés) caberem no ecrã vertical, sem
+        // sair da sala (expoente 0.45, validado de 320×568 a 430×932)
+        const d = Math.pow(rest, lerp(1.0, 0.45, inRoom));
         pos.sub(tgt).multiplyScalar(d).add(tgt);
       }
       // no telemóvel o set de podcast é o protagonista: centra a câmara nele

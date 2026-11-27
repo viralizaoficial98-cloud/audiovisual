@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* ecrãs baixos (telemóveis pequenos, portáteis em horizontal): composições mais compactas */
+@custom-variant short (@media (max-height: 700px));
+
 @theme {
   --color-ink: #080808;
   --color-ink-2: #0e0e0f;
