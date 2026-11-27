@@ -635,14 +635,19 @@ function AdaptiveResolution({
     const p = heroState.progress;
     const moving = p !== s.lastP;
     s.lastP = p;
-    // amostras: frames consecutivos da animação (inclui frames muito lentos)
-    if (moving && s.wasMoving && dt > 0 && dt < 2 && now > s.cooldown) {
+    // amostras: frames consecutivos da animação (inclui frames muito lentos, até 5 s)
+    if (moving && s.wasMoving && dt > 0 && dt < 5 && now > s.cooldown) {
       s.samples.push(dt);
-      if (s.samples.length >= 45) {
+      const total = s.samples.reduce((x, y) => x + y, 0);
+      // janela: ≥ 45 frames, ou ≥ 12 frames com ≥ 1.5 s (em aparelhos lentos a decisão
+      // tem de chegar antes de a sequência terminar)
+      if (s.samples.length >= 45 || (s.samples.length >= 12 && total >= 1.5)) {
         const sorted = s.samples.sort((a, b) => a - b);
         const typical = sorted[Math.floor(sorted.length * 0.6)];
         s.samples = [];
-        if (typical > budget * 1.3 && s.cur > min)
+        // muito lento (< 4 fps): directamente para a resolução mínima; senão, em degraus
+        if (typical > 0.25 && s.cur > min) s.pending = min;
+        else if (typical > budget * 1.3 && s.cur > min)
           s.pending = Math.max(min, +(s.cur - 0.2).toFixed(2));
         else if (typical < budget * 0.6 && s.cur < max && s.ups < 2)
           s.pending = Math.min(max, +(s.cur + 0.15).toFixed(2));

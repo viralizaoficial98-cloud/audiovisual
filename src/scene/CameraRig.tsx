@@ -104,7 +104,8 @@ export function CameraRig({ parallax = true }: { parallax?: boolean }) {
         // horizontal do desktop (nada fica cortado); dentro da sala recua o suficiente para os
         // equipamentos laterais (softboxes, câmaras nos tripés) caberem no ecrã vertical, sem
         // sair da sala (expoente 0.45, validado de 320×568 a 430×932)
-        const d = Math.pow(rest, lerp(1.0, 0.45, inRoom));
+        // (+12% na câmara/luzes: as peças mais próximas, como a lente, ficam dentro do ecrã)
+        const d = Math.pow(rest, lerp(1.0, 0.45, inRoom)) * (1 + 0.12 * (1 - inRoom));
         pos.sub(tgt).multiplyScalar(d).add(tgt);
       }
       // no telemóvel o set de podcast é o protagonista: centra a câmara nele
